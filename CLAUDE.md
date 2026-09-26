@@ -27,12 +27,15 @@ npx drizzle-kit migrate    # Apply migrations to Neon PostgreSQL
 
 ### Dual Database Strategy
 
-- **PostgreSQL** — users, roles, authentication, inventory. Neon on Vercel; the `portal` database of the TimescaleDB cluster on the VM. Accessed via Drizzle ORM with the node-postgres driver (`/db/drizzle.ts`, schemas in `/db/schema/`).
-
-### VM deployment
-
-`Dockerfile` builds a standalone image (published to GHCR by `.github/workflows/imagen.yml`) that runs as a quadlet in `ba-aire/infra` behind caddy, reachable only through the VPN. `scripts/migrate.ts` is bundled into the image as `migrate.js` to apply `drizzle/` migrations without drizzle-kit. Never change a database by hand or with `drizzle-kit push`: a fresh database built from `drizzle/` must match the schema (see `drizzle/0007_*`).
+- **PostgreSQL** — users, roles, authentication. Accessed via Drizzle ORM (`/db/drizzle.ts`, schemas in `/db/schema/`).
 - **InfluxDB** — minute-level air quality measurements (`/db/influx.ts`). Tables follow pattern `{pollutant}_minutales` (e.g., `co_minutales`, `pm25_minutales`). Locations: `centenario`, `cordoba`, `catalinas`, `cifa`.
+
+### Two deployments
+
+- **Vercel** (development): users in Neon, data from InfluxDB. `db/drizzle.ts` uses the Neon HTTP driver when `VERCEL` is set. It must keep working unchanged until the VM app is settled; later it becomes a cabin/equipment status app.
+- **VM** (production, reachable only through the VPN): the `Dockerfile` builds a standalone image (published to GHCR by `.github/workflows/imagen.yml`) that runs as a quadlet in `ba-aire/infra` behind caddy. Users live in the `portal` database of the TimescaleDB cluster, via node-postgres. Only the `user` table is imported from Neon. Pollutant data will come from TimescaleDB (phase 2).
+- Never use `db.transaction()`: the Neon HTTP driver does not support interactive transactions.
+- `scripts/migrate.ts` is bundled into the image as `migrate.js` to apply `drizzle/` migrations without drizzle-kit. Never change a database by hand or with `drizzle-kit push`: a fresh database built from `drizzle/` must match the schema (see `drizzle/0007_*`).
 
 ### Layered Data Flow
 
