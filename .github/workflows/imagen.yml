@@ -1,0 +1,75 @@
+name: Imagen
+
+# Buildea la imagen del Dockerfile y la publica en GHCR para la VM
+# (quadlets/portal.image en ba-aire/infra). Vercel sigue desplegando por su cuenta.
+#
+# Solo main y tags: una imagen por PR serían paquetes que nadie despliega. Para
+# probar el Dockerfile en un PR está workflow_dispatch, o `docker build` local.
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: imagen-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publicar:
+    name: Build y push a GHCR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Login a GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Tags legibles para humanos (main, sha-abc1234, v1.2.3). La VM NO los usa:
+      # pinnea el digest que imprime el último paso, así "qué corría el 3/8" se
+      # responde con un hash y no con un tag que se mueve.
+      - name: Tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/portal
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=sha,prefix=sha-
+
+      - name: Build y push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Digest para el quadlet
+        run: |
+          {
+            echo "### Imagen publicada"
+            echo
+            echo "Pegar en \`quadlets/portal.image\` de ba-aire/infra:"
+            echo
+            echo '```'
+            echo "Image=ghcr.io/${{ github.repository_owner }}/portal@${{ steps.build.outputs.digest }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

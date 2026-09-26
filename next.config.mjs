@@ -23,6 +23,9 @@ const securityHeaders = [
 ];
 
 const nextConfig = {
+  // Para la imagen de la VM (Dockerfile): .next/standalone trae un server.js y solo
+  // los node_modules que el build efectivamente usa. Vercel lo ignora.
+  output: "standalone",
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

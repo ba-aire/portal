@@ -27,7 +27,11 @@ npx drizzle-kit migrate    # Apply migrations to Neon PostgreSQL
 
 ### Dual Database Strategy
 
-- **PostgreSQL (Neon)** — users, roles, authentication. Accessed via Drizzle ORM (`/db/drizzle.ts`, schemas in `/db/schema/`).
+- **PostgreSQL** — users, roles, authentication, inventory. Neon on Vercel; the `portal` database of the TimescaleDB cluster on the VM. Accessed via Drizzle ORM with the node-postgres driver (`/db/drizzle.ts`, schemas in `/db/schema/`).
+
+### VM deployment
+
+`Dockerfile` builds a standalone image (published to GHCR by `.github/workflows/imagen.yml`) that runs as a quadlet in `ba-aire/infra` behind caddy, reachable only through the VPN. `scripts/migrate.ts` is bundled into the image as `migrate.js` to apply `drizzle/` migrations without drizzle-kit. Never change a database by hand or with `drizzle-kit push`: a fresh database built from `drizzle/` must match the schema (see `drizzle/0007_*`).
 - **InfluxDB** — minute-level air quality measurements (`/db/influx.ts`). Tables follow pattern `{pollutant}_minutales` (e.g., `co_minutales`, `pm25_minutales`). Locations: `centenario`, `cordoba`, `catalinas`, `cifa`.
 
 ### Layered Data Flow
