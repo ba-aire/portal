@@ -1,5 +1,10 @@
 # CLAUDE.md
 
+> **Rama `vercel`.** Es la app que despliega Vercel (entorno de desarrollo: Neon +
+> InfluxDB), congelada. Solo recibe arreglos por PR directo a esta rama. El
+> desarrollo nuevo va a `main`, que se despliega en la VM (producción). No mergear
+> `main` acá: los dos divergen a propósito (drivers de base, origen de datos).
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Commands

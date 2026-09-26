@@ -2,7 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # Esta es la rama `vercel`: la app de desarrollo congelada que despliega
+    # Vercel. `main` es la de produccion (VM) y tiene su propio ci.yml.
+    branches: [vercel]
   pull_request:
 
 # Un push nuevo sobre la misma rama cancela la corrida anterior.
