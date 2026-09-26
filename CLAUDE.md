@@ -30,11 +30,12 @@ npx drizzle-kit migrate    # Apply migrations to Neon PostgreSQL
 - **PostgreSQL** — users, roles, authentication. Accessed via Drizzle ORM (`/db/drizzle.ts`, schemas in `/db/schema/`).
 - **InfluxDB** — minute-level air quality measurements (`/db/influx.ts`). Tables follow pattern `{pollutant}_minutales` (e.g., `co_minutales`, `pm25_minutales`). Locations: `centenario`, `cordoba`, `catalinas`, `cifa`.
 
-### Two deployments
+### Branches and deployments
 
-- **Vercel** (development): users in Neon, data from InfluxDB. `db/drizzle.ts` uses the Neon HTTP driver when `VERCEL` is set. It must keep working unchanged until the VM app is settled; later it becomes a cabin/equipment status app.
-- **VM** (production, reachable only through the VPN): the `Dockerfile` builds a standalone image (published to GHCR by `.github/workflows/imagen.yml`) that runs as a quadlet in `ba-aire/infra` behind caddy. Users live in the `portal` database of the TimescaleDB cluster, via node-postgres. Only the `user` table is imported from Neon. Pollutant data will come from TimescaleDB (phase 2).
-- Never use `db.transaction()`: the Neon HTTP driver does not support interactive transactions.
+- **`main` = production, on the VM** (reachable only through the VPN). The `Dockerfile` builds a standalone image, published to GHCR by `.github/workflows/imagen.yml`. It runs as a quadlet in `ba-aire/infra`, behind caddy. Merging to `main` does NOT deploy: the VM only changes when an infra PR bumps the image digest. Users live in the `portal` database of the TimescaleDB cluster (node-postgres). Pollutant data will come from TimescaleDB (phase 2).
+- **`vercel` = the development app on Vercel** (Neon + InfluxDB), frozen at the pre-VM `main`. Vercel's Production Branch is `vercel`. It only gets fixes, through PRs targeting it directly. Never merge `main` into it: they diverge on purpose. Later it becomes a cabin/equipment status app.
+- `vercel.json` on `main` skips every Vercel build. The `vercel` branch has its own `vercel.json`.
+- Day-to-day work: `feat/*` / `fix/*` branches → PR to `main`.
 - `scripts/migrate.ts` is bundled into the image as `migrate.js` to apply `drizzle/` migrations without drizzle-kit. Never change a database by hand or with `drizzle-kit push`: a fresh database built from `drizzle/` must match the schema (see `drizzle/0007_*`).
 
 ### Layered Data Flow
@@ -79,7 +80,7 @@ API routes validate query params with Zod. Services call repositories which buil
 ## Environment Variables
 
 ```
-DATABASE_URL=         # Neon PostgreSQL connection string
+DATABASE_URL=         # PostgreSQL connection string (VM: base `portal`)
 INFLUXDB_TOKEN=       # InfluxDB auth token
 SESSION_SECRET=       # Base64 key for JWT signing
 ```
