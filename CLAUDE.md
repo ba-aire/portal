@@ -34,7 +34,7 @@ npx drizzle-kit migrate    # Apply migrations to Neon PostgreSQL
 
 - **`main` = production, on the VM** (reachable only through the VPN). The `Dockerfile` builds a standalone image, published to GHCR by `.github/workflows/imagen.yml`. It runs as a quadlet in `ba-aire/infra`, behind caddy. Images are published ONLY for `vX.Y.Z` tags, not on every merge: a release is `git tag v0.2.0 && git push origin v0.2.0`. Even then nothing deploys by itself: the VM only changes when an infra PR bumps the image digest. Users live in the `portal` database of the TimescaleDB cluster (node-postgres). Pollutant data will come from TimescaleDB (phase 2).
 - **`vercel` = the development app on Vercel** (Neon + InfluxDB), frozen at the pre-VM `main`. Vercel's Production Branch is `vercel`. It only gets fixes, through PRs targeting it directly. Never merge `main` into it: they diverge on purpose. Later it becomes a cabin/equipment status app.
-- `vercel.json` on `main` skips every Vercel build. The `vercel` branch has its own `vercel.json`.
+- `vercel.json` on `main` sets `git.deploymentEnabled: false`, so Vercel creates no deployment for `main` or any branch cut from it. The `vercel` branch has its own `vercel.json`, which is what lets it deploy. Vercel reads `vercel.json` from the commit being pushed.
 - Day-to-day work: `feat/*` / `fix/*` branches → PR to `main`.
 - `scripts/migrate.ts` is bundled into the image as `migrate.js` to apply `drizzle/` migrations without drizzle-kit. Never change a database by hand or with `drizzle-kit push`: a fresh database built from `drizzle/` must match the schema (see `drizzle/0007_*`).
 
