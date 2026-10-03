@@ -1,15 +1,28 @@
 name: Imagen
 
 # Buildea la imagen del Dockerfile y la publica en GHCR para la VM
-# (quadlets/portal.image en ba-aire/infra). Vercel sigue desplegando por su cuenta.
+# (quadlets/portal.image en ba-aire/infra). La app de Vercel vive en la rama
+# `vercel` y no pasa por acá.
 #
-# Solo main y tags: una imagen por PR serían paquetes que nadie despliega. Para
-# probar el Dockerfile en un PR está workflow_dispatch, o `docker build` local.
+# SOLO CON TAGS vX.Y.Z. Publicar en cada merge a main generaba una imagen por cada PR
+# de Dependabot. El paquete es privado, así que cada imagen consume cuota de GHCR
+# de la org, y casi ninguna se despliega. Un tag es la decisión explícita de "esto
+# va a producción", y deja escrito qué versión corre en la VM.
+#
+# Publicar una versión:
+#   git switch main && git pull
+#   git tag v0.2.0 && git push origin v0.2.0
+# (o un Release en GitHub, que crea el tag). Si el build falla, "Re-run jobs" en
+# la corrida; no hace falta otro tag.
+#
+# Sin workflow_dispatch a propósito: correrlo sobre una rama publicaría una imagen
+# sin versión, que es justo lo que este trigger evita. Para probar el Dockerfile
+# alcanza con `docker build` local.
 on:
   push:
-    branches: [main]
-    tags: ["v*"]
-  workflow_dispatch:
+    # v*.*.* y no v*: metadata-action solo arma el tag 0.2.0 de una versión
+    # semver completa. Con "v1" o "v1.2" la imagen sale solo con el tag sha-...
+    tags: ["v*.*.*"]
 
 concurrency:
   group: imagen-${{ github.ref }}
@@ -38,7 +51,7 @@ jobs:
 
       - uses: docker/setup-buildx-action@v4
 
-      # Tags legibles para humanos (main, sha-abc1234, v1.2.3). La VM NO los usa:
+      # Tags legibles para humanos (0.2.0, sha-abc1234). La VM NO los usa:
       # pinnea el digest que imprime el último paso, así "qué corría el 3/8" se
       # responde con un hash y no con un tag que se mueve.
       - name: Tags
@@ -47,7 +60,6 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository_owner }}/portal
           tags: |
-            type=ref,event=branch
             type=semver,pattern={{version}}
             type=sha,prefix=sha-
 
