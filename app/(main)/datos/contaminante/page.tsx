@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { FiltrosType } from "@/app/(main)/datos/contaminante/components/filters";
 import SonnerToaster from "@/components/sonner-toaster";
 import useFetchDatos from "@/hooks/useFetchDatos";
+import { withBasePath } from "@/lib/base-path";
 import Chart from "./components/chart";
 import Filtros from "./components/filters";
 import Table from "./components/table";
@@ -72,7 +73,7 @@ export default function CrudosPage() {
       {data === undefined && !isLoading && !error && (
         <div className="w-full h-full flex flex-col items-center justify-center text-center">
           <Image
-            src="/data-search.png"
+            src={withBasePath("/data-search.png")}
             alt="No hay datos"
             width={400}
             height={400}
