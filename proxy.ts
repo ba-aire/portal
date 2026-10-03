@@ -57,6 +57,17 @@ function buildCsp(nonce: string) {
   ].join("; ");
 }
 
+// Destino de un redirect DENTRO de la app. Se arma clonando req.nextUrl y no con
+// `new URL("/login", req.nextUrl)`: el NextURL agrega el basePath ("/portal") al
+// serializarse; una URL común no, y el redirect terminaría en /login, fuera de la
+// app. Clonar también descarta el query string del request original.
+function redirectTo(req: NextRequest, pathname: string) {
+  const url = req.nextUrl.clone();
+  url.pathname = pathname;
+  url.search = "";
+  return url;
+}
+
 export default async function proxy(req: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const csp = buildCsp(nonce);
@@ -78,17 +89,15 @@ export default async function proxy(req: NextRequest) {
   // Redirigir a /login o /inicio si el usuario ingresa a "/"
   if (path === "/") {
     if (session?.userId) {
-      return NextResponse.redirect(
-        new URL("/estaciones/centenario", req.nextUrl),
-      );
+      return NextResponse.redirect(redirectTo(req, "/estaciones/centenario"));
     } else {
-      return NextResponse.redirect(new URL("/login", req.nextUrl));
+      return NextResponse.redirect(redirectTo(req, "/login"));
     }
   }
 
   // 4. Redirect to /login if the user is not authenticated
   if (isProtectedRoute && !session?.userId) {
-    return NextResponse.redirect(new URL("/login", req.nextUrl));
+    return NextResponse.redirect(redirectTo(req, "/login"));
   }
 
   // 5. Redirect to /inicio if the user is authenticated
@@ -97,9 +106,7 @@ export default async function proxy(req: NextRequest) {
     session?.userId &&
     !req.nextUrl.pathname.startsWith("/estaciones/centenario")
   ) {
-    return NextResponse.redirect(
-      new URL("/estaciones/centenario", req.nextUrl),
-    );
+    return NextResponse.redirect(redirectTo(req, "/estaciones/centenario"));
   }
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
@@ -108,6 +115,11 @@ export default async function proxy(req: NextRequest) {
 }
 
 // Routes Proxy should not run on
+//
+// "/" va aparte: con basePath, Next antepone "/portal" a cada matcher, y el patrón
+// de abajo exige algo después de la barra. Matchea "/portal/..." pero NO "/portal"
+// a secas, que es justo la raíz de la app: sin esta entrada, la raíz se sirve sin
+// pasar por el redirect a /login ni por el CSP.
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|.*\\.png$).*)"],
+  matcher: ["/", "/((?!api|_next/static|_next/image|.*\\.png$).*)"],
 };

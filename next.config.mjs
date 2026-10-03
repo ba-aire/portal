@@ -22,10 +22,19 @@ const securityHeaders = [
   },
 ];
 
+// La app vive en https://<vm>/portal: caddy deja el resto del host libre para otras
+// apps, con el mismo 443 y el mismo certificado. Cambiarlo implica tocar también
+// caddy/Caddyfile en ba-aire/infra.
+const basePath = "/portal";
+
 const nextConfig = {
   // Para la imagen de la VM (Dockerfile): .next/standalone trae un server.js y solo
-  // los node_modules que el build efectivamente usa. Vercel lo ignora.
+  // los node_modules que el build efectivamente usa.
   output: "standalone",
+  basePath,
+  // Lo leen lib/base-path.ts y sus usos en el cliente (fetch, EventSource, imágenes
+  // de /public), que Next no prefija solo. `env` lo inlinea en el build.
+  env: { NEXT_PUBLIC_BASE_PATH: basePath },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
