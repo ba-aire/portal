@@ -26,6 +26,33 @@ updates:
       # Los security updates NO se agrupan: cada vulnerabilidad merece su propio
       # PR para poder mergearla sola y rápido, sin arrastrar bumps de rutina.
 
+  # npm de la rama `vercel` (app de desarrollo congelada, expuesta en internet).
+  #
+  # Dependabot abre los PRs de SEGURIDAD solo contra la rama por defecto: con
+  # target-branch no hay forma de mandarlos a `vercel`. Lo más cercano son updates
+  # de versión limitados a PATCH, que es donde suelen salir los fixes de seguridad,
+  # en un único PR. Nada de minor ni major: la rama está congelada y un bump de
+  # rutina es riesgo sin beneficio. Las alertas de Dependabot también miran solo
+  # `main`: si una advisory pide un minor, en `vercel` hay que hacerlo a mano.
+  - package-ecosystem: "npm"
+    directory: "/"
+    target-branch: "vercel"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+      timezone: "America/Argentina/Buenos_Aires"
+    open-pull-requests-limit: 1
+    labels: ["dependencias", "vercel"]
+    commit-message:
+      prefix: "chore(deps-vercel)"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+    groups:
+      parches:
+        patterns: ["*"]
+
   # Versiones de las actions usadas en los workflows (actions/checkout, etc.).
   # Sin esto se quedan viejas y en algún momento GitHub deja de soportarlas.
   - package-ecosystem: "github-actions"
