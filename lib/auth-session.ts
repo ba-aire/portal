@@ -8,6 +8,7 @@ import { jwtVerify, SignJWT } from "jose";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
+import { isHttps } from "@/lib/https";
 // The payload should contain the minimum, unique user data that'll be used in subsequent requests,
 // such as the user's ID, role, etc. It should not contain personally identifiable information
 // like phone number, email address, credit card information, etc, or sensitive data like passwords.
@@ -69,7 +70,7 @@ export async function createSession(
   const cookieStore = await cookies();
   cookieStore.set("session", session, {
     httpOnly: true,
-    secure: true,
+    secure: isHttps(),
     expires: expiresAt,
     sameSite: "lax",
     path: "/",
@@ -89,7 +90,7 @@ export async function updateSession() {
   const cookieStore = await cookies();
   cookieStore.set("session", session, {
     httpOnly: true,
-    secure: true,
+    secure: isHttps(),
     expires: expires,
     sameSite: "lax",
     path: "/",

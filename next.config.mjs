@@ -14,12 +14,8 @@ const securityHeaders = [
     key: "Permissions-Policy",
     value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
   },
-  // HSTS: 2 años, subdominios incluidos. La cookie de sesión ya es secure;
-  // esto evita el primer request en claro.
-  {
-    key: "Strict-Transport-Security",
-    value: "max-age=63072000; includeSubDomains; preload",
-  },
+  // Sin HSTS: el portal se sirve por HTTP dentro de la VPN (lib/https.ts). Si
+  // vuelve el HTTPS: { key: "Strict-Transport-Security", value: "max-age=63072000" }.
 ];
 
 const nextConfig = {
