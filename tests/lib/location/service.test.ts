@@ -80,20 +80,22 @@ describe("applyFreshnessCheck", () => {
       expect(r.freshness.co).toBe("fresh");
     });
 
-    // El umbral es 4 minutos con corte `<=`: a los 4 exactos todavía es válido.
-    // Correrlo a `<` deja en blanco el panel cada vez que un analizador se
-    // atrasa un minuto, que es normal en la red.
-    it("mantiene fresh el dato de exactamente 4 minutos", () => {
-      const r = applyFreshnessCheck(estacion({ co: haceMinutos(4) }));
+    // El umbral es 2 minutos (lecturas crudas de bronze, la más lenta cada 30 s)
+    // con corte `<=`: a los 2 exactos todavía es válido.
+    it("mantiene fresh la lectura de exactamente 2 minutos", () => {
+      const r = applyFreshnessCheck(estacion({ co: haceMinutos(2) }));
 
       expect(r.freshness.co).toBe("fresh");
       expect(r.co_mean).toBe(1);
     });
 
-    it("marca como stale a partir del quinto minuto", () => {
-      const r = applyFreshnessCheck(estacion({ co: haceMinutos(5) }));
+    it("marca como stale una lectura de 2 minutos y 1 segundo", () => {
+      const r = applyFreshnessCheck(
+        estacion({ co: new Date(haceMinutos(2).getTime() - 1000) }),
+      );
 
       expect(r.freshness.co).toBe("stale");
+      expect(r.co_mean).toBeNull();
     });
 
     it("marca como stale un instrumento sin timestamp", () => {
