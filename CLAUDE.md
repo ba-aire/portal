@@ -15,11 +15,11 @@ npm run test:watch   # Watch mode tests
 npm run test:coverage # Coverage report
 ```
 
-Database migrations (via Drizzle Kit):
+Database migrations (via Drizzle Kit, for the `portal` database only):
 ```bash
-npx drizzle-kit generate   # Generate migration from schema changes
-npx drizzle-kit migrate    # Apply migrations to Neon PostgreSQL
+npx drizzle-kit generate   # Generate a migration from schema changes in db/schema/
 ```
+They are applied on the VM by `make portal-migrate` (infra), which runs the bundled `migrate.js` from the image.
 
 ## Architecture
 
@@ -27,7 +27,7 @@ npx drizzle-kit migrate    # Apply migrations to Neon PostgreSQL
 
 ### Dual Database Strategy
 
-- **PostgreSQL** — users, roles, authentication. Accessed via Drizzle ORM (`/db/drizzle.ts`, schemas in `/db/schema/`).
+- **PostgreSQL, database `portal`** — the app's own data: `user` and `login_attempt`, nothing else. Drizzle ORM (`/db/drizzle.ts`, schemas in `/db/schema/`). Emails are stored lowercase (unique index on `lower(email)`). `user.is_active = false` blocks login. Roles live in `lib/auth/roles.ts`. Equipment/station inventory does NOT belong here: it lives in `dim.*` of `airedb`, declared in `ba-aire/data` (ADR 0013).
 - **InfluxDB** — minute-level air quality measurements (`/db/influx.ts`). Tables follow pattern `{pollutant}_minutales` (e.g., `co_minutales`, `pm25_minutales`). Locations: `centenario`, `cordoba`, `catalinas`, `cifa`.
 
 ### Branches and deployments
@@ -36,7 +36,7 @@ npx drizzle-kit migrate    # Apply migrations to Neon PostgreSQL
 - **`vercel` = the development app on Vercel** (Neon + InfluxDB), frozen at the pre-VM `main`. Vercel's Production Branch is `vercel`. It only gets fixes, through PRs targeting it directly. Never merge `main` into it: they diverge on purpose. Later it becomes a cabin/equipment status app.
 - `vercel.json` on `main` sets `git.deploymentEnabled: false`, so Vercel creates no deployment for `main` or any branch cut from it. The `vercel` branch has its own `vercel.json`, which is what lets it deploy. Vercel reads `vercel.json` from the commit being pushed.
 - Day-to-day work: `feat/*` / `fix/*` branches → PR to `main`.
-- `scripts/migrate.ts` is bundled into the image as `migrate.js` to apply `drizzle/` migrations without drizzle-kit. Never change a database by hand or with `drizzle-kit push`: a fresh database built from `drizzle/` must match the schema (see `drizzle/0007_*`).
+- `scripts/migrate.ts` is bundled into the image as `migrate.js` to apply `drizzle/` migrations without drizzle-kit. `scripts/create-user.ts` (bundled as `create-user.js`, run by `make portal-user`) creates users, resets passwords and enables/disables accounts from the VM, password via stdin. Never change a database by hand or with `drizzle-kit push`: a fresh database built from `drizzle/` must match the schema. The history restarts at `drizzle/0000_esquema_inicial.sql`; never edit it, add new migrations.
 
 ### Layered Data Flow
 

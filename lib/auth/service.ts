@@ -58,6 +58,14 @@ export async function loginUser(
     return { success: false, message: CREDENCIALES_INVALIDAS };
   }
 
+  // Deshabilitado: el mismo mensaje que una contraseña mala, y recién DESPUÉS de
+  // bcrypt, para que ni el texto ni el tiempo de respuesta revelen que la cuenta
+  // existe. No suma intento fallido: la contraseña era correcta, y bloquear la IP
+  // de quien la sabe no protege nada.
+  if (!usuario.isActive) {
+    return { success: false, message: CREDENCIALES_INVALIDAS };
+  }
+
   await clearAttempts(usuario.email);
 
   // Crear la sesión del usuario
@@ -106,13 +114,9 @@ export async function registerUser(data: UserInsert): Promise<AuthResponse> {
     };
 
     // Manejo de errores específicos de PostgreSQL
+    // El único índice único es el del email (user_email_lower_idx): el nombre ya
+    // no es único, dos personas pueden llamarse igual.
     if (pgError.code === "23505") {
-      if (pgError.detail?.includes("name")) {
-        return {
-          success: false,
-          message: "El nombre de usuario ya está en uso",
-        };
-      }
       if (pgError.detail?.includes("email")) {
         return {
           success: false,
