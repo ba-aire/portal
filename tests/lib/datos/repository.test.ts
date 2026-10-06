@@ -1,252 +1,269 @@
 // @vitest-environment node
 //
-// El repositorio arma SQL crudo por interpolación de strings. No hay forma de
-// verificarlo contra una InfluxDB real en CI, así que se intercepta el cliente
-// y se afirma sobre la query generada: es la única capa donde un shift de
-// tiempo mal puesto o una tabla equivocada se puede detectar sin datos vivos.
+// /datos desde silver y gold. Lo que se verifica es lo que no se ve en el SQL:
+// que los filtros viajen como parametros, que cada intervalo consulte la tabla o
+// vista correcta, como se pivotean las filas largas a las columnas que dibuja la
+// UI, y que ya NO haya corrimientos de tiempo (los resuelven silver y V13).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-type Fila = Record<string, string | number>;
+type Fila = {
+  t: Date;
+  station_code: string;
+  parameter_code: string;
+  value: string | number | null;
+  status?: string;
+};
 
-const { influx, state } = vi.hoisted(() => {
+const { queryAiredb, state } = vi.hoisted(() => {
   const state = {
-    queries: [] as string[],
-    /** Devuelve las filas con las que responde InfluxDB para una query dada. */
-    responder: (_sql: string): Fila[] => [],
+    // Respuestas por consulta: se elige por un fragmento del SQL.
+    responder: (_sql: string): unknown[] => [],
   };
-
-  const influx = {
-    query: (sql: string, _database: string) => {
-      state.queries.push(sql);
-      const filas = state.responder(sql);
-      return (async function* () {
-        for (const fila of filas) yield fila;
-      })();
-    },
-  };
-
-  return { influx, state };
+  const queryAiredb = vi.fn(async (sql: string, _params: unknown[]) =>
+    state.responder(sql),
+  );
+  return { queryAiredb, state };
 });
 
-vi.mock("@/db/influx", () => ({ influx }));
+vi.mock("@/db/airedb", () => ({ queryAiredb }));
 
 import { fetchDatosPorContaminante } from "@/lib/datos/repository";
 
-/** Queries emitidas, con los espacios colapsados para poder matchear. */
-function queries(): string[] {
-  return state.queries.map((q) => q.replace(/\s+/g, " ").trim());
+const BASE = {
+  locations: ["centenario", "cordoba"] as ("centenario" | "cordoba")[],
+  startDate: "2026-10-01T03:00:00.000Z",
+  endDate: "2026-10-02T03:00:00.000Z",
+};
+
+function fila(
+  t: string,
+  station_code: string,
+  parameter_code: string,
+  value: string | number | null,
+  status?: string,
+): Fila {
+  return { t: new Date(t), station_code, parameter_code, value, status };
 }
 
-const PARAMS_BASE = {
-  contaminant: "co",
-  locations: ["centenario"],
-  startDate: "2026-01-01T00:00:00Z",
-  endDate: "2026-01-02T00:00:00Z",
-  interval: "hour",
-};
+/** Responde segun la tabla o vista que aparezca en el SQL. */
+function responderPor(por: Record<string, unknown[]>) {
+  return (sql: string) => {
+    for (const [fragmento, filas] of Object.entries(por)) {
+      if (sql.includes(fragmento)) return filas;
+    }
+    return [];
+  };
+}
+
+function sqls(): string[] {
+  return queryAiredb.mock.calls.map((c) => String(c[0]).replace(/\s+/g, " "));
+}
 
 describe("fetchDatosPorContaminante", () => {
   beforeEach(() => {
-    state.queries = [];
+    queryAiredb.mockClear();
     state.responder = () => [];
   });
 
-  describe("elección de tabla y columna", () => {
-    it.each([
-      ["co", "co_minutales", "co_mean"],
-      ["no2", "nox_minutales", "no2_mean"],
-      ["no", "nox_minutales", "no_mean"],
-      ["pm10", "pm10_minutales", "pm10_mean"],
-      ["pm25", "pm25_minutales", "pm25_mean"],
-      ["o3", "o3_minutales", "o3_mean"],
-      ["so2", "so2_minutales", "so2_mean"],
-    ])("%s consulta %s tomando %s", async (contaminant, tabla, columna) => {
-      await fetchDatosPorContaminante({ ...PARAMS_BASE, contaminant });
+  describe("consultas", () => {
+    it("por minuto lee silver.minute_reading", async () => {
+      await fetchDatosPorContaminante({
+        ...BASE,
+        contaminant: "co",
+        interval: "minute",
+      });
 
-      expect(queries()[0]).toContain(`FROM ${tabla}`);
-      expect(queries()[0]).toContain(`THEN ${columna} END`);
+      expect(sqls().some((q) => q.includes("FROM silver.minute_reading"))).toBe(
+        true,
+      );
+      expect(sqls().some((q) => q.includes("gold."))).toBe(false);
     });
 
-    // NO, NO2 y NOx salen del mismo analizador y por lo tanto de la misma tabla:
-    // si alguien agregara nox_minutales por separado, este test lo marca.
-    it("agrupa no, no2 y nox en la tabla del analizador de NOx", async () => {
-      for (const contaminant of ["no", "no2", "nox"]) {
-        await fetchDatosPorContaminante({ ...PARAMS_BASE, contaminant });
+    it("por hora lee silver.hourly_reading y gold.v_hourly, solo las horas validas de gold", async () => {
+      await fetchDatosPorContaminante({
+        ...BASE,
+        contaminant: "co",
+        interval: "hour",
+      });
+
+      expect(
+        sqls().some((q) => q.includes("FROM silver.hourly_reading h JOIN")),
+      ).toBe(true);
+      const gold = sqls().find((q) => q.includes("FROM gold.v_hourly"));
+      expect(gold).toContain("AND g.is_valid");
+    });
+
+    it("por dia lee gold.v_daily y agrega silver por dia de Buenos Aires", async () => {
+      await fetchDatosPorContaminante({
+        ...BASE,
+        contaminant: "co",
+        interval: "day",
+      });
+
+      expect(sqls().some((q) => q.includes("FROM gold.v_daily"))).toBe(true);
+      expect(
+        sqls().some(
+          (q) =>
+            q.includes("America/Argentina/Buenos_Aires") &&
+            q.includes("avg(h.value)"),
+        ),
+      ).toBe(true);
+    });
+
+    it("pasa estaciones, parametros y rango como parametros, nunca dentro del SQL", async () => {
+      await fetchDatosPorContaminante({
+        ...BASE,
+        contaminant: "nox",
+        interval: "hour",
+      });
+
+      for (const q of sqls()) {
+        expect(q).not.toContain("centenario");
+        expect(q).not.toContain(BASE.startDate);
       }
-
-      for (const q of queries()) expect(q).toContain("FROM nox_minutales");
+      const args = queryAiredb.mock.calls.find((c) =>
+        String(c[0]).includes("silver.hourly_reading h"),
+      )?.[1];
+      expect(args).toEqual([
+        BASE.locations,
+        ["no", "no2", "nox"],
+        BASE.startDate,
+        BASE.endDate,
+      ]);
     });
   });
 
-  describe("alineación temporal de los buckets", () => {
-    // En las tablas minutales el timestamp marca el FIN del minuto: el registro
-    // de 12:00 es el muestreo 11:59-12:00 y pertenece al promedio 11-12. Sin el
-    // shift, cada valor se contabiliza en la hora siguiente a la que le toca.
-    it("corre un minuto hacia atrás al agrupar por hora", async () => {
-      await fetchDatosPorContaminante({ ...PARAMS_BASE, interval: "hour" });
-
-      expect(queries()[0]).toContain(
-        "DATE_TRUNC('hour', time - INTERVAL '1 minute')",
-      );
-    });
-
-    // Con interval "minute" cada registro ya es su propio bucket: aplicar el
-    // shift lo correría un minuto entero respecto de su propia marca.
-    it("no aplica el shift cuando el intervalo es minutal", async () => {
-      await fetchDatosPorContaminante({ ...PARAMS_BASE, interval: "minute" });
-
-      expect(queries()[0]).toContain("DATE_TRUNC('minute', time)");
-      expect(queries()[0]).not.toContain("INTERVAL '1 minute'");
-    });
-
-    // El BAM1020 mide durante una hora y publica el resultado en la hora
-    // siguiente, así que pm10 lleva una hora extra de corrimiento sobre el
-    // shift minutal común.
-    it("resta una hora adicional para pm10", async () => {
-      await fetchDatosPorContaminante({
-        ...PARAMS_BASE,
-        contaminant: "pm10",
+  describe("pivot", () => {
+    it("arma una fila por instante con una columna por estacion", async () => {
+      state.responder = responderPor({
+        "silver.hourly_reading h": [
+          fila("2026-10-01T10:00:00Z", "centenario", "co", "0.512"),
+          fila("2026-10-01T10:00:00Z", "cordoba", "co", "0.3"),
+          fila("2026-10-01T11:00:00Z", "centenario", "co", "0.6"),
+        ],
       });
-
-      expect(queries()[0]).toContain(
-        "time - INTERVAL '1 minute' - INTERVAL '1 hour'",
-      );
-    });
-
-    it("no aplica el corrimiento del BAM1020 a otros contaminantes", async () => {
-      await fetchDatosPorContaminante({ ...PARAMS_BASE, contaminant: "o3" });
-
-      expect(queries()[0]).not.toContain("INTERVAL '1 hour'");
-    });
-  });
-
-  describe("columnas por estación", () => {
-    it("genera una columna por estación con su alias", async () => {
-      await fetchDatosPorContaminante({
-        ...PARAMS_BASE,
-        locations: ["centenario", "cifa"],
-      });
-
-      expect(queries()[0]).toContain('AS "centenario"');
-      expect(queries()[0]).toContain('AS "cifa"');
-    });
-
-    // Un solo pedido de NOx devuelve las tres especies: el analizador las mide
-    // juntas y la UI las grafica superpuestas.
-    it("expande nox en tres columnas por estación", async () => {
-      await fetchDatosPorContaminante({ ...PARAMS_BASE, contaminant: "nox" });
-
-      expect(queries()[0]).toContain('AS "centenario NO2"');
-      expect(queries()[0]).toContain('AS "centenario NO"');
-      expect(queries()[0]).toContain('AS "centenario NOx"');
-    });
-  });
-
-  describe("pm1025 (PM10 + PM2.5)", () => {
-    it("consulta las dos tablas y mergea por timestamp", async () => {
-      state.responder = (sql) =>
-        sql.includes("pm10_minutales")
-          ? [{ time: "2026-01-01T10:00:00Z", "centenario PM10": 30 }]
-          : [{ time: "2026-01-01T10:00:00Z", "centenario PM25": 12 }];
 
       const { data } = await fetchDatosPorContaminante({
-        ...PARAMS_BASE,
-        contaminant: "pm1025",
+        ...BASE,
+        contaminant: "co",
+        interval: "hour",
       });
 
-      expect(state.queries).toHaveLength(2);
-      // Viven en tablas distintas pero son una sola fila para el usuario.
       expect(data).toEqual([
-        {
-          time: "2026-01-01T10:00:00Z",
-          "centenario PM10": 30,
-          "centenario PM25": 12,
-        },
+        { time: "2026-10-01T10:00:00.000Z", centenario: 0.512, cordoba: 0.3 },
+        { time: "2026-10-01T11:00:00.000Z", centenario: 0.6 },
       ]);
     });
 
-    it("aplica el corrimiento del BAM1020 sólo a la query de pm10", async () => {
-      await fetchDatosPorContaminante({
-        ...PARAMS_BASE,
-        contaminant: "pm1025",
+    it("agrega la serie de gold con el sufijo (gold)", async () => {
+      state.responder = responderPor({
+        "silver.hourly_reading h": [
+          fila("2026-10-01T10:00:00Z", "centenario", "co", "0.5"),
+        ],
+        "gold.v_hourly": [
+          fila("2026-10-01T10:00:00Z", "centenario", "co", "0.49"),
+        ],
       });
-
-      const pm10 = queries().find((q) => q.includes("FROM pm10_minutales"));
-      const pm25 = queries().find((q) => q.includes("FROM pm25_minutales"));
-
-      expect(pm10).toContain("INTERVAL '1 hour'");
-      expect(pm25).not.toContain("INTERVAL '1 hour'");
-    });
-
-    it("ordena cronológicamente el resultado unificado", async () => {
-      state.responder = (sql) =>
-        sql.includes("pm10_minutales")
-          ? [{ time: "2026-01-01T12:00:00Z", a: 1 }]
-          : [{ time: "2026-01-01T09:00:00Z", b: 2 }];
 
       const { data } = await fetchDatosPorContaminante({
-        ...PARAMS_BASE,
-        contaminant: "pm1025",
+        ...BASE,
+        contaminant: "co",
+        interval: "hour",
       });
 
-      expect(data.map((f) => f.time)).toEqual([
-        "2026-01-01T09:00:00Z",
-        "2026-01-01T12:00:00Z",
-      ]);
+      expect(data[0]).toEqual({
+        time: "2026-10-01T10:00:00.000Z",
+        centenario: 0.5,
+        "centenario (gold)": 0.49,
+      });
+    });
+
+    it("por minuto agrega el status de cada serie", async () => {
+      state.responder = responderPor({
+        "silver.minute_reading": [
+          fila("2026-10-01T10:00:00Z", "centenario", "co", "0.5", "ok"),
+          fila("2026-10-01T10:01:00Z", "centenario", "co", "40", "span"),
+        ],
+      });
+
+      const { data } = await fetchDatosPorContaminante({
+        ...BASE,
+        contaminant: "co",
+        interval: "minute",
+      });
+
+      expect(data[1]).toEqual({
+        time: "2026-10-01T10:01:00.000Z",
+        centenario: 40,
+        "centenario@status": "span",
+      });
+    });
+
+    it("nombra las series de NOx y de PM10+PM2.5 como la UI espera", async () => {
+      state.responder = responderPor({
+        "silver.hourly_reading h": [
+          fila("2026-10-01T10:00:00Z", "cordoba", "no2", "20"),
+          fila("2026-10-01T10:00:00Z", "cordoba", "nox", "30"),
+        ],
+      });
+
+      const { data } = await fetchDatosPorContaminante({
+        ...BASE,
+        contaminant: "nox",
+        interval: "hour",
+      });
+
+      expect(data[0]).toMatchObject({ "cordoba NO2": 20, "cordoba NOx": 30 });
+    });
+
+    it("no corre el PM10 en el tiempo: lo resuelve la horaria de silver (V13)", async () => {
+      state.responder = responderPor({
+        "silver.hourly_reading h": [
+          fila("2026-10-01T10:00:00Z", "centenario", "pm10", "42"),
+        ],
+      });
+
+      const { data } = await fetchDatosPorContaminante({
+        ...BASE,
+        contaminant: "pm10",
+        interval: "hour",
+      });
+
+      expect(data[0]).toEqual({
+        time: "2026-10-01T10:00:00.000Z",
+        centenario: 42,
+      });
+    });
+
+    it("convierte el numeric de pg (string) a number, y conserva los null", async () => {
+      state.responder = responderPor({
+        "silver.minute_reading": [
+          fila("2026-10-01T10:00:00Z", "cifa", "o3", null, "no_link"),
+        ],
+      });
+
+      const { data } = await fetchDatosPorContaminante({
+        ...BASE,
+        locations: ["cifa"],
+        contaminant: "o3",
+        interval: "minute",
+      });
+
+      expect(data[0].cifa).toBeNull();
     });
   });
 
-  describe("recorte de la ventana pedida", () => {
-    // Los shifts empujan buckets hacia atrás: el registro de las 00:00 del
-    // startDate puede caer en las 23:xx del día anterior. Devolverlo sería
-    // mostrar datos fuera del rango que el usuario pidió.
-    it("descarta filas que quedaron antes del startDate tras el shift", async () => {
-      state.responder = () => [
-        { time: "2025-12-31T23:00:00Z", centenario: 1 },
-        { time: "2026-01-01T00:00:00Z", centenario: 2 },
-        { time: "2026-01-01T01:00:00Z", centenario: 3 },
-      ];
-
-      const { data } = await fetchDatosPorContaminante(PARAMS_BASE);
-
-      expect(data.map((f) => f.centenario)).toEqual([2, 3]);
+  it("informa hasta donde proceso la horaria", async () => {
+    state.responder = responderPor({
+      "max(ts_hour)": [{ hasta: new Date("2026-10-06T17:00:00Z") }],
     });
 
-    it("conserva la fila que cae justo en el startDate", async () => {
-      state.responder = () => [{ time: "2026-01-01T00:00:00Z", centenario: 7 }];
-
-      const { data } = await fetchDatosPorContaminante(PARAMS_BASE);
-
-      expect(data).toHaveLength(1);
-    });
-  });
-
-  it("propaga el rango pedido en meta", async () => {
-    const { meta } = await fetchDatosPorContaminante(PARAMS_BASE);
-
-    expect(meta).toEqual({
+    const { meta } = await fetchDatosPorContaminante({
+      ...BASE,
       contaminant: "co",
-      locations: ["centenario"],
-      startDate: "2026-01-01T00:00:00Z",
-      endDate: "2026-01-02T00:00:00Z",
       interval: "hour",
     });
-  });
 
-  // El service no envuelve el error a propósito, para que la route pueda
-  // distinguir un fallo de InfluxDB (500 genérico) de una validación (400).
-  // Si el repositorio se lo tragara y devolviera [], el dashboard mostraría
-  // "sin datos" ante una caída de la base.
-  it("propaga el error de InfluxDB en vez de devolver vacío", async () => {
-    const consola = vi.spyOn(console, "error").mockImplementation(() => {});
-    state.responder = () => {
-      throw new Error("influx caída");
-    };
-
-    await expect(fetchDatosPorContaminante(PARAMS_BASE)).rejects.toThrow(
-      "influx caída",
-    );
-
-    consola.mockRestore();
+    expect(meta.procesadoHasta).toBe("2026-10-06T17:00:00.000Z");
   });
 });

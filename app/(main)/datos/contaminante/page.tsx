@@ -1,13 +1,15 @@
 "use client";
 import { AlertCircle, FileWarning, Loader2 } from "lucide-react";
 import Image from "next/image";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { FiltrosType } from "@/app/(main)/datos/contaminante/components/filters";
 import SonnerToaster from "@/components/sonner-toaster";
 import useFetchDatos from "@/hooks/useFetchDatos";
 import { withBasePath } from "@/lib/base-path";
+import { type Fuentes, filtrarSeries, STATUS_MINUTO } from "@/lib/datos/series";
 import Chart from "./components/chart";
 import Filtros from "./components/filters";
+import SeriesControls from "./components/series-controls";
 import Table from "./components/table";
 
 export default function CrudosPage() {
@@ -18,7 +20,20 @@ export default function CrudosPage() {
     endDate: undefined,
     locations: "",
   });
-  const { data, error, isLoading, fetchDatos } = useFetchDatos();
+  const { data, error, isLoading, procesadoHasta, fetchDatos } =
+    useFetchDatos();
+  // Que mostrar del resultado: por defecto, todo. Cambiarlo no vuelve a consultar.
+  const [statuses, setStatuses] = useState<Set<string>>(
+    () => new Set(STATUS_MINUTO.map((s) => s.value)),
+  );
+  const [fuentes, setFuentes] = useState<Fuentes>({ silver: true, gold: true });
+  const visibles = useMemo(
+    () =>
+      Array.isArray(data)
+        ? filtrarSeries(data, filters.interval, { statuses, fuentes })
+        : data,
+    [data, filters.interval, statuses, fuentes],
+  );
 
   const handleFetch = (newFilters: FiltrosType) => {
     setFilters(newFilters);
@@ -56,8 +71,16 @@ export default function CrudosPage() {
       )}
       {Array.isArray(data) && data.length > 0 && !isLoading && !error && (
         <>
-          <Chart data={data} />
-          <Table data={data} />
+          <SeriesControls
+            interval={filters.interval}
+            statuses={statuses}
+            onStatusesChange={setStatuses}
+            fuentes={fuentes}
+            onFuentesChange={setFuentes}
+            procesadoHasta={procesadoHasta}
+          />
+          <Chart data={visibles ?? []} />
+          <Table data={visibles ?? []} />
         </>
       )}
       {Array.isArray(data) && data.length === 0 && !isLoading && !error && (

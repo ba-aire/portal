@@ -22,7 +22,7 @@ export class DatosService {
    * Obtiene datos de contaminantes con validación y procesamiento
    */
   // Sin try/catch a propósito: los errores deben subir con su tipo intacto para que
-  // la route distinga un ZodError (400, con detalle) de un fallo de InfluxDB (500,
+  // la route distinga un ZodError (400, con detalle) de un fallo de la base (500,
   // genérico). Envolverlos en un Error nuevo borra esa distinción y arrastra el
   // mensaje del driver —que incluye SQL y nombres de tabla— hasta la respuesta.
   async getDatosPorContaminante(rawParams: unknown): Promise<QueryResult> {
@@ -32,13 +32,10 @@ export class DatosService {
     // Obtener datos del repositorio
     const result = await fetchDatosPorContaminante(validatedParams);
 
-    // Ensure data conforms to DataPointSchema (formato original)
-    const formattedData = result.data.map(
-      (row: Record<string, string | number>) => ({
-        time: String(row.time || ""),
-        ...row,
-      }),
-    );
+    const formattedData = result.data.map((row) => ({
+      ...row,
+      time: String(row.time || ""),
+    }));
 
     // Retornar en formato estandarizado con conteo de registros
     return {
