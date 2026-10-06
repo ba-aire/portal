@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { withBasePath } from "@/lib/base-path";
 import type { FiltrosType } from "../app/(main)/datos/contaminante/components/filters";
 
 export interface DataRow extends Record<string, string | number> {
@@ -21,7 +22,9 @@ export default function useFetchDatos() {
         startDate: filters.startDate ? filters.startDate.toISOString() : "",
         endDate: filters.endDate ? filters.endDate.toISOString() : "",
       });
-      const response = await fetch(`/api/datos?${params.toString()}`);
+      const response = await fetch(
+        withBasePath(`/api/datos?${params.toString()}`),
+      );
       if (!response.ok) {
         const errorText = await response.text();
         setError(errorText || "Error al obtener los datos");
