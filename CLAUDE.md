@@ -28,7 +28,9 @@ They are applied on the VM by `make portal-migrate` (infra), which runs the bund
 ### Dual Database Strategy
 
 - **PostgreSQL, database `portal`** — the app's own data: `user` and `login_attempt`, nothing else. Drizzle ORM (`/db/drizzle.ts`, schemas in `/db/schema/`). Emails are stored lowercase (unique index on `lower(email)`). `user.is_active = false` blocks login. Roles live in `lib/auth/roles.ts`. Equipment/station inventory does NOT belong here: it lives in `dim.*` of `airedb`, declared in `ba-aire/data` (ADR 0013).
-- **InfluxDB** — minute-level air quality measurements (`/db/influx.ts`). Tables follow pattern `{pollutant}_minutales` (e.g., `co_minutales`, `pm25_minutales`). Locations: `centenario`, `cordoba`, `catalinas`, `cifa`.
+- **PostgreSQL, database `airedb`** (TimescaleDB, the regulatory archive owned by `ba-aire/data`) — `/db/airedb.ts`, same `portal` role, **read-only** (V12 in data: SELECT on `bronze`, `silver`, `gold`, `dim`). Plain parameterized SQL via `queryAiredb()`, no Drizzle: the schema is declared by Flyway in `data`, don't duplicate it here. The session is also `default_transaction_read_only`. Never write to bronze/silver/gold: silver and gold are recomputed from bronze. Future annul/validate decisions go to a dedicated append-only schema that gold applies.
+  - `/estaciones` (`lib/location`) reads the latest **raw reading** of each instrument from bronze, every 5 s by SSE. Field names still say `*_mean` (UI shape from the InfluxDB era).
+- **InfluxDB** — still used by `lib/datos` and `lib/descargas` until they move to silver/gold (`/db/influx.ts`, tables `{pollutant}_minutales`). Locations: `centenario`, `cordoba`, `catalinas`, `cifa`.
 
 ### Branches and deployments
 
@@ -81,6 +83,7 @@ API routes validate query params with Zod. Services call repositories which buil
 
 ```
 DATABASE_URL=         # PostgreSQL connection string (VM: base `portal`)
+AIREDB_URL=           # Same role `portal`, database `airedb` (read-only). Local: scripts/dev-db.sh prints both
 INFLUXDB_TOKEN=       # InfluxDB auth token
 SESSION_SECRET=       # Base64 key for JWT signing
 PORTAL_HTTPS=         # "true" only if served behind TLS: re-enables the secure cookie and CSP upgrade-insecure-requests (lib/https.ts). Default: plain HTTP inside the VPN
