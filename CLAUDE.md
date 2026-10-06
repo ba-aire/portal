@@ -32,7 +32,7 @@ npx drizzle-kit migrate    # Apply migrations to Neon PostgreSQL
 
 ### Branches and deployments
 
-- **`main` = production, on the VM** (reachable only through the VPN). The `Dockerfile` builds a standalone image, published to GHCR by `.github/workflows/imagen.yml`. It runs as a quadlet in `ba-aire/infra`, behind caddy. Images are published ONLY for `vX.Y.Z` tags, not on every merge: a release is `git tag v0.2.0 && git push origin v0.2.0`. Even then nothing deploys by itself: the VM only changes when an infra PR bumps the image digest. Users live in the `portal` database of the TimescaleDB cluster (node-postgres). Pollutant data will come from TimescaleDB (phase 2).
+- **`main` = production, on the VM** (reachable only through the VPN). The `Dockerfile` builds a standalone image, published to GHCR by `.github/workflows/imagen.yml`. It runs as a quadlet in `ba-aire/infra`, behind caddy, over **plain HTTP** inside the VPN, like the organization's other internal apps (ADR 0017 in infra). Anything that only works with TLS goes through `lib/https.ts`. Images are published ONLY for `vX.Y.Z` tags, not on every merge: a release is `git tag v0.2.0 && git push origin v0.2.0`. Even then nothing deploys by itself: the VM only changes when an infra PR bumps the image digest. Users live in the `portal` database of the TimescaleDB cluster (node-postgres). Pollutant data will come from TimescaleDB (phase 2).
 - **`vercel` = the development app on Vercel** (Neon + InfluxDB), frozen at the pre-VM `main`. Vercel's Production Branch is `vercel`. It only gets fixes, through PRs targeting it directly. Never merge `main` into it: they diverge on purpose. Later it becomes a cabin/equipment status app.
 - `vercel.json` on `main` sets `git.deploymentEnabled: false`, so Vercel creates no deployment for `main` or any branch cut from it. The `vercel` branch has its own `vercel.json`, which is what lets it deploy. Vercel reads `vercel.json` from the commit being pushed.
 - Day-to-day work: `feat/*` / `fix/*` branches → PR to `main`.
@@ -83,6 +83,7 @@ API routes validate query params with Zod. Services call repositories which buil
 DATABASE_URL=         # PostgreSQL connection string (VM: base `portal`)
 INFLUXDB_TOKEN=       # InfluxDB auth token
 SESSION_SECRET=       # Base64 key for JWT signing
+PORTAL_HTTPS=         # "true" only if served behind TLS: re-enables the secure cookie and CSP upgrade-insecure-requests (lib/https.ts). Default: plain HTTP inside the VPN
 ```
 
 ## Testing

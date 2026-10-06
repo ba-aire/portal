@@ -104,11 +104,24 @@ describe("auth-session", () => {
       expect(typeof token).toBe("string");
       expect(options).toMatchObject({
         httpOnly: true,
-        secure: true,
+        // Por defecto el portal va por HTTP (lib/https.ts): una cookie secure no
+        // se guardaría y nadie quedaría logueado.
+        secure: false,
         sameSite: "lax",
         path: "/",
       });
       expect(options.expires).toBeInstanceOf(Date);
+    });
+
+    it("marca la cookie como secure si PORTAL_HTTPS=true", async () => {
+      vi.stubEnv("PORTAL_HTTPS", "true");
+      try {
+        await createSession("42", "Ana", "EDITOR", "ana@example.com");
+        const [, , options] = cookieStore.set.mock.calls[0];
+        expect(options.secure).toBe(true);
+      } finally {
+        vi.unstubAllEnvs();
+      }
     });
 
     it("guarda un token que decripta de vuelta al payload del usuario", async () => {

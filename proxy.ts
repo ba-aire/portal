@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
 import { decrypt } from "@/lib/auth-session";
+import { isHttps } from "@/lib/https";
 
 // 1. Specify protected and public routes
 //
@@ -53,7 +54,8 @@ function buildCsp(nonce: string) {
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
-    "upgrade-insecure-requests",
+    // Solo con HTTPS adelante: por HTTP haría pedir cada recurso por https.
+    ...(isHttps() ? ["upgrade-insecure-requests"] : []),
   ].join("; ");
 }
 
