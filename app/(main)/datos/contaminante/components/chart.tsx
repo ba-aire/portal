@@ -13,9 +13,10 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { esGold, ordenarSeries, serieBase, seriesDe } from "@/lib/datos/series";
 
 interface ChartProps {
-  data: Record<string, string | number>[];
+  data: Record<string, string | number | null>[];
 }
 
 // data example para CO:
@@ -50,17 +51,14 @@ export default function Chart({ data }: ChartProps) {
   // Obtengo los datos ordenados por ubicación (columnas) dinámicamente excluyendo 'time'.
   // Recorro todas las filas por si la fuente mergeó tablas con timestamps distintos
   // (p.ej. pm10 + pm25) y data[0] no tiene todas las columnas.
-  const locations = Array.from(
-    data.reduce((set, row) => {
-      Object.keys(row).forEach((k) => {
-        if (k !== "time") set.add(k);
-      });
-      return set;
-    }, new Set<string>()),
-  );
+  const locations = ordenarSeries(seriesDe(data));
   // Verifico si el contaminante seleccionado por el usuario es NOx totales
   // para mostrar grafico de area acumulativo no + no2 y nox
   const isNox = locations.some((location) => location.includes("NOx"));
+  // El apilado de NO + NO2 se arma con UNA fuente: si estan silver y gold, con
+  // silver; apilar las dos sumaria dos veces la misma concentracion.
+  const silverSeries = locations.filter((l) => !esGold(l));
+  const areaSeries = silverSeries.length > 0 ? silverSeries : locations;
 
   // Colores predefinidos para cada estación
   const stationColor: Record<string, string> = {
@@ -91,6 +89,11 @@ export default function Chart({ data }: ChartProps) {
     otra: "var(--color-otra)",
   };
 
+  // La serie de gold va con el color de su estacion y punteada: es el mismo dato,
+  // filtrado por el 75 %.
+  const color = (serie: string) =>
+    stationColor[serieBase(serie)] ?? "var(--color-otra)";
+
   const displayName = (location: string) => {
     let label = location;
     if (label === "catalinas" || label.startsWith("catalinas ")) {
@@ -112,7 +115,7 @@ export default function Chart({ data }: ChartProps) {
         hour: "2-digit",
         minute: "2-digit",
         timeZone: "America/Argentina/Buenos_Aires",
-      }).format(new Date(row.time)),
+      }).format(new Date(String(row.time))),
     };
 
     locations.forEach((location) => {
@@ -165,14 +168,14 @@ export default function Chart({ data }: ChartProps) {
             }}
           />
           <Legend iconType="plainline" iconSize={20} />
-          {locations.map((location) =>
+          {areaSeries.map((location) =>
             location.includes("NOx") ? (
               <Line
                 key={location}
                 type="monotone"
                 dataKey={location}
                 name={displayName(location)}
-                stroke={stationColor[location] ?? "var(--color-otra)"}
+                stroke={color(location)}
                 dot={false}
                 strokeWidth={3}
                 strokeDasharray="4 7"
@@ -184,8 +187,8 @@ export default function Chart({ data }: ChartProps) {
                 dataKey={location}
                 name={displayName(location)}
                 stackId="1"
-                stroke={stationColor[location] ?? "var(--color-otra)"}
-                fill={stationColor[location] ?? "var(--color-otra)"}
+                stroke={color(location)}
+                fill={color(location)}
               />
             ),
           )}
@@ -224,11 +227,17 @@ export default function Chart({ data }: ChartProps) {
               key={location}
               type="linear"
               dataKey={location}
-              stroke={stationColor[location] ?? "var(--color-otra)"}
+              stroke={color(location)}
               name={displayName(location)}
               dot={false}
               strokeWidth={location.includes("NOx") ? 3 : 2}
-              strokeDasharray={location.includes("NOx") ? "4 7" : "4 0"}
+              strokeDasharray={
+                esGold(location)
+                  ? "2 3"
+                  : location.includes("NOx")
+                    ? "4 7"
+                    : "4 0"
+              }
             />
           ))}
         </LineChart>

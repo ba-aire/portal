@@ -55,6 +55,7 @@ describe("DatosService.getDatosPorContaminante", () => {
         startDate: validRawParams.startDate,
         endDate: validRawParams.endDate,
         interval: "hour",
+        procesadoHasta: null,
       },
     });
 
@@ -84,6 +85,7 @@ describe("DatosService.getDatosPorContaminante", () => {
         startDate: "2025-07-29T00:00:00Z",
         endDate: "2025-07-30T00:00:00Z",
         interval: "hour",
+        procesadoHasta: null,
       },
     });
 
