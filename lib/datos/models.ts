@@ -41,8 +41,8 @@ export type Location = z.infer<typeof LocationEnum>;
 
 export const QueryParamsSchema = z.object({
   contaminant: ContaminantEnum.default("co"),
-  // LocationEnum, no z.string(): el repositorio interpola cada valor en SQL crudo,
-  // dos veces (dentro del WHERE y como alias de columna entre comillas dobles).
+  // LocationEnum, no z.string(): el repositorio las pasa como parametro, pero una
+  // estacion que no existe no tiene por que llegar a la base.
   locations: z
     .string()
     .transform((val) => val.split(",").map((loc) => loc.trim()))
@@ -64,8 +64,8 @@ export const QueryParamsSchema = z.object({
 });
 export type QueryParams = z.infer<typeof QueryParamsSchema>;
 
-// Tope de ventana por intervalo, en días. Las tablas son minutales: sin límite,
-// un solo request puede pedir años de datos y agotar la cuota de InfluxDB.
+// Tope de ventana por intervalo, en días. Sin límite, un solo request puede pedir
+// años de minutos y comerse la memoria del portal y la del Postgres de la VM.
 // El techo acompaña la granularidad — a menor resolución, más rango razonable.
 export const MAX_RANGE_DAYS: Record<Interval, number> = {
   minute: 31,
@@ -109,7 +109,8 @@ export const DataPointSchema = z
   .object({
     time: z.string(),
   })
-  .catchall(z.union([z.number(), z.string(), StatusEnum]));
+  // Valor (number), status del minuto (string) o null (sin dato).
+  .catchall(z.union([z.number(), z.string(), z.null()]));
 export type DataPoint = z.infer<typeof DataPointSchema>;
 
 export const QueryResultSchema = z.object({
@@ -121,6 +122,8 @@ export const QueryResultSchema = z.object({
     endDate: z.string(),
     interval: IntervalEnum,
     count: z.number(),
+    // Hasta donde llego la horaria de silver (los jobs corren cada hora).
+    procesadoHasta: z.string().nullable(),
   }),
 });
 export type QueryResult = z.infer<typeof QueryResultSchema>;
