@@ -17,8 +17,6 @@ const protectedRoutes = [
   "/datos",
   "/descargas",
   "/estaciones",
-  "/inventario",
-  "/mantenimiento",
   "/reportes",
 ];
 const publicRoutes = ["/login"];

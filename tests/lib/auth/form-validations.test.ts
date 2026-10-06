@@ -25,6 +25,27 @@ describe("LoginFormSchema", () => {
     }
   });
 
+  it("normaliza el email a minúsculas, que es como se guarda y se busca", () => {
+    const login = LoginFormSchema.safeParse({
+      email: "  Ana.Paz@BuenosAires.gob.ar ",
+      password: "password1!",
+    });
+    const registro = RegisterFormSchema.safeParse({
+      name: "Ana",
+      lastName: "Paz",
+      email: "Ana.Paz@BuenosAires.gob.ar",
+      password: "password1!",
+      role: "VIEWER",
+    });
+
+    expect(login.success && login.data.email).toBe(
+      "ana.paz@buenosaires.gob.ar",
+    );
+    expect(registro.success && registro.data.email).toBe(
+      "ana.paz@buenosaires.gob.ar",
+    );
+  });
+
   it("rechaza un email inválido", () => {
     const result = LoginFormSchema.safeParse({
       email: "no-es-un-email",

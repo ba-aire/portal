@@ -5,57 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1736040353129,
-      "tag": "0000_cold_medusa",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1736384523669,
-      "tag": "0001_slim_vision",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1737081243078,
-      "tag": "0002_magenta_network",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1737209845413,
-      "tag": "0003_silky_moira_mactaggert",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1737232740510,
-      "tag": "0004_shiny_namora",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1737233021529,
-      "tag": "0005_special_harry_osborn",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1785085968898,
-      "tag": "0006_good_sheva_callister",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1790440906838,
-      "tag": "0007_user_alinear_con_neon",
+      "when": 1791296590793,
+      "tag": "0000_esquema_inicial",
       "breakpoints": true
     }
   ]

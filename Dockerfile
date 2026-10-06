@@ -36,10 +36,13 @@ RUN DATABASE_URL=postgresql://build:build@build.invalid/build \
     INFLUXDB_TOKEN=build-dummy-token \
     npm run build
 
-# El migrator va aparte del server: standalone solo incluye lo que las rutas
-# importan, y drizzle-kit es devDependency. Un solo archivo, con pg adentro.
-RUN npx esbuild scripts/migrate.ts --bundle --platform=node --format=cjs \
-      --external:pg-native --outfile=migrate.js
+# Los scripts de operación van aparte del server: standalone solo incluye lo que
+# las rutas importan, y drizzle-kit es devDependency. Cada uno es un solo archivo,
+# con pg adentro. migrate.js aplica drizzle/; create-user.js da de alta usuarios.
+RUN for s in migrate create-user; do \
+      npx esbuild scripts/$s.ts --bundle --platform=node --format=cjs \
+        --external:pg-native --outfile=$s.js || exit 1; \
+    done
 
 # ---- runtime -----------------------------------------------------------------
 FROM node:${NODE_VERSION} AS runner
@@ -57,11 +60,13 @@ COPY --from=builder --chown=node:node /app/public ./public
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 COPY --from=builder --chown=node:node /app/migrate.js ./migrate.js
+COPY --from=builder --chown=node:node /app/create-user.js ./create-user.js
 COPY --from=builder --chown=node:node /app/drizzle ./drizzle
 
 USER node
 EXPOSE 3000
 
-# Migraciones: mismo contenedor, otro comando (lo corre `make portal-migrate`):
-#   podman run --rm ... <imagen> node migrate.js
+# Operación: mismo contenedor, otro comando (los corre el Makefile de infra):
+#   podman run --rm ... <imagen> node migrate.js        (make portal-migrate)
+#   podman run -i --rm ... <imagen> node create-user.js (make portal-user)
 CMD ["node", "server.js"]
