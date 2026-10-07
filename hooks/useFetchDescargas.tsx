@@ -18,7 +18,13 @@ export default function useFetchDescargas() {
         integration: filters.integration,
         location: filters.location,
         startDate: filters.startDate ? filters.startDate.toISOString() : "",
-        endDate: filters.endDate ? filters.endDate.toISOString() : "",
+        // "Hasta el 6" es hasta el FINAL del 6: el calendario da la medianoche del
+        // dia elegido, y la API filtra con `< endDate`. Igual que en /datos.
+        endDate: filters.endDate
+          ? new Date(
+              filters.endDate.getTime() + 24 * 60 * 60 * 1000,
+            ).toISOString()
+          : "",
       });
       const response = await fetch(
         withBasePath(`/api/descargas?${params.toString()}`),

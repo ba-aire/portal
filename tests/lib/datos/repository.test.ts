@@ -86,9 +86,11 @@ describe("fetchDatosPorContaminante", () => {
         interval: "hour",
       });
 
-      expect(
-        sqls().some((q) => q.includes("FROM silver.hourly_reading h JOIN")),
-      ).toBe(true);
+      const silver = sqls().find((q) =>
+        q.includes("FROM silver.hourly_reading h JOIN"),
+      );
+      // Silver es el crudo (V14): value ya es el de gold, solo minutos K.
+      expect(silver).toContain("h.value_raw AS value");
       const gold = sqls().find((q) => q.includes("FROM gold.v_hourly"));
       expect(gold).toContain("AND g.is_valid");
     });
@@ -105,7 +107,7 @@ describe("fetchDatosPorContaminante", () => {
         sqls().some(
           (q) =>
             q.includes("America/Argentina/Buenos_Aires") &&
-            q.includes("avg(h.value)"),
+            q.includes("avg(h.value_raw)"),
         ),
       ).toBe(true);
     });
