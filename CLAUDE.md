@@ -23,7 +23,7 @@ They are applied on the VM by `make portal-migrate` (infra), which runs the bund
 
 ## Architecture
 
-**SIRCA** is an air quality monitoring dashboard (Sistema de Gestión de la Red de Calidad del Aire). It ingests time-series pollutant data from InfluxDB and user/auth data from PostgreSQL (Neon serverless).
+**SIRCA** is an air quality monitoring dashboard (Sistema de Gestión de la Red de Calidad del Aire). On `main` it reads air-quality data from TimescaleDB (`airedb`, owned by `ba-aire/data`) and users from its own `portal` database, both on the VM. InfluxDB and Neon remain only on the `vercel` branch.
 
 ### Dual Database Strategy
 
@@ -31,11 +31,12 @@ They are applied on the VM by `make portal-migrate` (infra), which runs the bund
 - **PostgreSQL, database `airedb`** (TimescaleDB, the regulatory archive owned by `ba-aire/data`) — `/db/airedb.ts`, same `portal` role, **read-only** (V12 in data: SELECT on `bronze`, `silver`, `gold`, `dim`). Plain parameterized SQL via `queryAiredb()`, no Drizzle: the schema is declared by Flyway in `data`, don't duplicate it here. The session is also `default_transaction_read_only`. Never write to bronze/silver/gold: silver and gold are recomputed from bronze. Future annul/validate decisions go to a dedicated append-only schema that gold applies.
   - `/estaciones` (`lib/location`) reads the latest **raw reading** of each instrument from bronze, every 5 s by SSE. Field names still say `*_mean` (UI shape from the InfluxDB era).
   - `/datos` (`lib/datos`) reads silver (`minute_reading`, `hourly_reading`) and gold (`v_hourly`, `v_daily`, valid windows only). Same wide-row response as before, plus `<serie>@status` per minute and `<serie> (gold)` per hour/day; `lib/datos/series.ts` filters them client-side (status checkboxes, silver/gold toggles). No time shifts in the portal: silver's `ts_minute` is the minute START, and the BAM1020 one-hour lag is fixed in data's hourly (V13).
-- **InfluxDB** — still used by `lib/descargas` until it moves to silver/gold (`/db/influx.ts`, tables `{pollutant}_minutales`). Locations: `centenario`, `cordoba`, `catalinas`, `cifa`.
+  - `/descargas` (`lib/descargas`) builds the Excel in the browser from one wide row per instant. Hourly: `<p>` = gold.v_hourly (only K minutes), `<p>_raw` = silver `value_raw` (every minute, any status), `<group>_status` (statuses seen, as letters K/A/M/Z/S/C) and `<group>_k_status` (K minutes). Minute: silver `minute_reading`, crudos sheet only. `dv_rumbo` = `dim.rumbo()`, crudos only. The pivot runs in SQL. The **validados** sheet is pasted into the network's general spreadsheet: its 18 columns (`lib/descargas/config.ts`, `h2s` always s/d) must not change. Rain (sum of DayRain increments), wind direction (vector mean) and alarm exclusion are computed by data V14, not here.
+- **InfluxDB** — gone from `main` (only the `vercel` branch uses it). Locations: `centenario`, `cordoba`, `catalinas`, `cifa`.
 
 ### Branches and deployments
 
-- **`main` = production, on the VM** (reachable only through the VPN). The `Dockerfile` builds a standalone image, published to GHCR by `.github/workflows/imagen.yml`. It runs as a quadlet in `ba-aire/infra`, behind caddy, over **plain HTTP** inside the VPN, like the organization's other internal apps (ADR 0017 in infra). Anything that only works with TLS goes through `lib/https.ts`. Images are published ONLY for `vX.Y.Z` tags, not on every merge: a release is `git tag v0.2.0 && git push origin v0.2.0`. Even then nothing deploys by itself: the VM only changes when an infra PR bumps the image digest. Users live in the `portal` database of the TimescaleDB cluster (node-postgres). Pollutant data will come from TimescaleDB (phase 2).
+- **`main` = production, on the VM** (reachable only through the VPN). The `Dockerfile` builds a standalone image, published to GHCR by `.github/workflows/imagen.yml`. It runs as a quadlet in `ba-aire/infra`, behind caddy, over **plain HTTP** inside the VPN, like the organization's other internal apps (ADR 0017 in infra). Anything that only works with TLS goes through `lib/https.ts`. Images are published ONLY for `vX.Y.Z` tags, not on every merge: a release is `git tag v0.2.0 && git push origin v0.2.0`. Even then nothing deploys by itself: the VM only changes when an infra PR bumps the image digest. Users live in the `portal` database of the TimescaleDB cluster (node-postgres). Pollutant data comes from TimescaleDB (`airedb`).
 - **`vercel` = the development app on Vercel** (Neon + InfluxDB), frozen at the pre-VM `main`. Vercel's Production Branch is `vercel`. It only gets fixes, through PRs targeting it directly. Never merge `main` into it: they diverge on purpose. Later it becomes a cabin/equipment status app.
 - `vercel.json` on `main` sets `git.deploymentEnabled: false`, so Vercel creates no deployment for `main` or any branch cut from it. The `vercel` branch has its own `vercel.json`, which is what lets it deploy. Vercel reads `vercel.json` from the commit being pushed.
 - Day-to-day work: `feat/*` / `fix/*` branches → PR to `main`.
@@ -47,10 +48,10 @@ They are applied on the VM by `make portal-migrate` (infra), which runs the bund
 React Hook (useFetchDatos / useFetchDescargas)
   → API Route (/app/api/datos/route.ts, /api/descargas/route.ts)
     → Service Layer (/lib/datos/, /lib/descargas/)
-      → Repository Layer (InfluxDB queries)
+      → Repository Layer (parameterized SQL on airedb via queryAiredb)
 ```
 
-API routes validate query params with Zod. Services call repositories which build dynamic InfluxDB SQL queries.
+API routes validate query params with Zod. Services call repositories; request values always travel as `$n` parameters, never interpolated.
 
 ### Authentication
 
@@ -85,7 +86,6 @@ API routes validate query params with Zod. Services call repositories which buil
 ```
 DATABASE_URL=         # PostgreSQL connection string (VM: base `portal`)
 AIREDB_URL=           # Same role `portal`, database `airedb` (read-only). Local: scripts/dev-db.sh prints both
-INFLUXDB_TOKEN=       # InfluxDB auth token
 SESSION_SECRET=       # Base64 key for JWT signing
 PORTAL_HTTPS=         # "true" only if served behind TLS: re-enables the secure cookie and CSP upgrade-insecure-requests (lib/https.ts). Default: plain HTTP inside the VPN
 ```

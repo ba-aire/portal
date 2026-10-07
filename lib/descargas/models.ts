@@ -1,7 +1,7 @@
 /**
  * @file Definiciones de tipos y esquemas de validación para el módulo de descargas.
  * @description Utiliza Zod para garantizar la integridad de los datos de entrada de filtros,
- * parámetros de consulta a InfluxDB y la estructura de los resultados.
+ * parámetros de consulta a airedb y la estructura de los resultados.
  * @author Ezequiel Maranda
  * @version 1.1.0
  * @since 2026-03-11
@@ -117,7 +117,7 @@ const bigIntToNumberOrNull = z.preprocess((val) => {
 }, z.union([z.number(), z.string(), StatusEnum, z.null()]).nullable());
 
 // Helper to convert time to string (handles number, Date, string)
-// Nota: El cliente @influxdata/influxdb3-client ya convierte nanosegundos a milisegundos
+// El repositorio ya entrega la fecha en ISO; esto cubre number, bigint y Date por las dudas.
 const timeToString = z.preprocess((val) => {
   if (val === null || val === undefined) {
     return "";

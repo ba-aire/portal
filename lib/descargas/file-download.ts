@@ -14,7 +14,7 @@ import {
   promedioOptions,
 } from "@/app/(main)/descargas/components/filters";
 import type { DataRow } from "@/hooks/useFetchDescargas";
-import { TABLE_CONFIG } from "./config";
+import { DERIVED_COLUMNS, TABLE_CONFIG } from "./config";
 
 // Listas de columnas numéricas agrupadas por cantidad de decimales
 const ONE_DECIMAL_COLUMNS = new Set<string>([
@@ -54,7 +54,7 @@ const LOW_COVERAGE_FILL: ExcelJS.Fill = {
 };
 
 // Bordes de la grilla: finos para las celdas, medios para separar grupos de
-// columnas (una tabla de InfluxDB por grupo) y el cambio de día.
+// columnas (un equipo de la cabina por grupo) y el cambio de día.
 const THIN_BORDER: ExcelJS.Border = {
   style: "thin",
   color: { argb: "FFD0D0D0" },
@@ -102,16 +102,20 @@ const LOW_COVERAGE_LEGEND_FONT: Partial<ExcelJS.Font> = {
   color: { argb: "FF9C6500" },
 };
 
-// Significado de cada status según la convención de la red.
+// Significado de cada status según la convención de la red. V (deprecado) no
+// aparece: silver la toma como K.
 const STATUS_LEGEND =
-  "Status: K = OK (dato válido) · A = Alarma equipo · V = Valor negativo/fuera de rango · " +
-  "M = Mantenimiento · Z = Zero cal · S = Span cal · s/d = sin dato";
+  "Status: K = OK (dato válido) · A = Alarma equipo · M = Mantenimiento · " +
+  "Z = Zero cal · S = Span cal · C = Sin comunicación · ? = Desconocido · s/d = sin dato";
 
-// Mapa métrica -> tabla de origen, para ubicar el conteo de minutos válidos.
+// Mapa métrica -> grupo (equipo), para ubicar el conteo de minutos válidos y
+// los bordes de la grilla. Las columnas derivadas van con su métrica.
 const METRIC_TO_TABLE = new Map<string, string>();
 Object.entries(TABLE_CONFIG).forEach(([tableKey, config]) => {
   config.metrics.forEach((metric) => {
-    METRIC_TO_TABLE.set(metric.replace("_mean", ""), tableKey);
+    METRIC_TO_TABLE.set(metric, tableKey);
+    const derived = DERIVED_COLUMNS[metric];
+    if (derived) METRIC_TO_TABLE.set(derived, tableKey);
   });
 });
 
@@ -184,11 +188,12 @@ function getOrderedColumns(
 
   Object.entries(TABLE_CONFIG).forEach(([tableKey, config]) => {
     // Agregar métricas de cada tabla
-    config.metrics.forEach((metric) => {
-      const fieldName = metric.replace("_mean", "");
+    config.metrics.forEach((fieldName) => {
       const rawField = `${fieldName}_raw`;
+      const derived = DERIVED_COLUMNS[fieldName];
       known.add(fieldName);
       known.add(rawField);
+      if (derived) known.add(derived);
 
       if (inferIntegration === "hour") {
         if (variant !== "crudos") push(fieldName);
@@ -196,6 +201,9 @@ function getOrderedColumns(
       } else {
         push(fieldName);
       }
+      // Derivadas (el rumbo del viento): pegadas a su métrica, nunca en
+      // validados, que conserva el formato de la planilla general.
+      if (derived && variant !== "validados") push(derived);
     });
 
     // Agregar campos de estado de cada tabla según el tipo de integración:
@@ -447,7 +455,7 @@ function hasLowKCount(row: DataRow, column: string): boolean {
   return typeof kCount === "number" && kCount < MIN_K_MINUTES_PER_HOUR;
 }
 
-/** Grupo visual al que pertenece una columna: su tabla de origen en InfluxDB. */
+/** Grupo visual al que pertenece una columna: el equipo que la mide (config.ts). */
 function groupKeyOf(col: string): string {
   const base = baseColumnName(col);
   const fromMetric = METRIC_TO_TABLE.get(base);
@@ -658,8 +666,13 @@ export async function downloadAsExcel(
   const crudosLegend: LegendLine[] = [
     {
       text: isHour
-        ? "Hoja CRUDOS: promedio horario de todos los minutos registrados, sin importar su status."
-        : "Hoja CRUDOS: valores minutales con el status reportado por cada equipo.",
+        ? "Hoja CRUDOS: promedio horario de todos los minutos registrados, sin importar su status. " +
+          "La lluvia es lo que llovió en la hora (suma); la dirección del viento, el promedio vectorial."
+        : "Hoja CRUDOS: valores minutales con el status reportado por cada equipo. " +
+          "La lluvia es el acumulado del día que informa la estación meteorológica.",
+    },
+    {
+      text: "Dv_rumbo: la dirección del viento en 16 rumbos (N, NNE, NE, ENE, E, ESE, SE, SSE, S, SSO, SO, OSO, O, ONO, NO, NNO).",
     },
     { text: STATUS_LEGEND },
     ...(isHour
@@ -677,22 +690,16 @@ export async function downloadAsExcel(
   ];
 
   // Sin la leyenda de status: vive en crudos, que es donde aparecen los códigos.
-  const validadosLegend: LegendLine[] = isHour
-    ? [
-        {
-          text: "Hoja VALIDADOS: promedio horario construido únicamente con los minutos en status K (OK).",
-        },
-        {
-          text: `Valor resaltado en amarillo: la hora se promedió con menos de ${MIN_K_MINUTES_PER_HOUR} minutos válidos (75% de la hora), por lo que es menos representativa.`,
-          fill: LOW_COVERAGE_FILL,
-          font: LOW_COVERAGE_LEGEND_FONT,
-        },
-      ]
-    : [
-        {
-          text: "Hoja VALIDADOS: valores minutales sin las columnas de status.",
-        },
-      ];
+  const validadosLegend: LegendLine[] = [
+    {
+      text: "Hoja VALIDADOS: promedio horario construido únicamente con los minutos en status K (OK).",
+    },
+    {
+      text: `Valor resaltado en amarillo: la hora se promedió con menos de ${MIN_K_MINUTES_PER_HOUR} minutos válidos (75% de la hora), por lo que es menos representativa.`,
+      fill: LOW_COVERAGE_FILL,
+      font: LOW_COVERAGE_LEGEND_FONT,
+    },
+  ];
 
   // Crear workbook
   const workbook = new ExcelJS.Workbook();
@@ -710,17 +717,21 @@ export async function downloadAsExcel(
   });
 
   // Segunda worksheet: "validados", sin columnas de estado ni series _raw.
-  const validadosColumns = getOrderedColumns(
-    data,
-    resolvedIntegration,
-    "validados",
-  );
-  const validadosWorksheet = workbook.addWorksheet("validados");
-  addDataToWorksheet(validadosWorksheet, data, validadosColumns, {
-    legend: validadosLegend,
-    hourRangeLabels: isHour,
-    highlightCell: isHour ? hasLowKCoverage : undefined,
-  });
+  // Solo por hora: la validación es de la hora (gold), y un minuto no tiene
+  // otro valor que el crudo.
+  if (isHour) {
+    const validadosColumns = getOrderedColumns(
+      data,
+      resolvedIntegration,
+      "validados",
+    );
+    const validadosWorksheet = workbook.addWorksheet("validados");
+    addDataToWorksheet(validadosWorksheet, data, validadosColumns, {
+      legend: validadosLegend,
+      hourRangeLabels: true,
+      highlightCell: hasLowKCoverage,
+    });
+  }
 
   // Generar buffer y descargar
   const buffer = await workbook.xlsx.writeBuffer();

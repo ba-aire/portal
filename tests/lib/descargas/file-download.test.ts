@@ -340,6 +340,45 @@ describe("downloadAsExcel", () => {
     ]);
   });
 
+  // La validación es de la hora (gold): un minuto no tiene otro valor que el
+  // crudo, así que la descarga minutal es una sola hoja.
+  it("genera solo la hoja crudos en la descarga minutal", async () => {
+    await downloadAsExcel([FILA], "x.xlsx", "minute");
+
+    const workbook = await excelDescargado();
+    expect(workbook.worksheets.map((h) => h.name)).toEqual(["crudos"]);
+  });
+
+  // validados se pega en la planilla general: sus columnas son fijas. El rumbo
+  // va solo en crudos, pegado a la dirección.
+  it("pone Dv_rumbo al lado de Dv en crudos y nunca en validados", async () => {
+    await downloadAsExcel([FILA], "x.xlsx", "hour");
+    const workbook = await excelDescargado();
+
+    const crudos = encabezadosDe(hojaDe(workbook, "crudos"));
+    expect(crudos[crudos.indexOf("Dv") + 1]).toBe("Dv_rumbo");
+    expect(encabezadosDe(hojaDe(workbook, "validados"))).toEqual([
+      "Fecha y Hora",
+      "No",
+      "No2",
+      "Nox",
+      "Co",
+      "O3",
+      "Pm10",
+      "Pm25",
+      "So2",
+      "H2s",
+      "Dv",
+      "Vv",
+      "Temp",
+      "Hr",
+      "Pa",
+      "Uv",
+      "Lluvia",
+      "Rs",
+    ]);
+  });
+
   // "validados" es la hoja que se comparte hacia afuera: lleva sólo las
   // mediciones, sin las columnas de control interno de la red.
   it("excluye las columnas de estado de la hoja validados", async () => {

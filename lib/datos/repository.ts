@@ -67,8 +67,10 @@ const MINUTOS = `
     AND m.ts_minute >= $3 AND m.ts_minute < $4
   ORDER BY 1`;
 
+// Silver es el CRUDO: value_raw, todos los minutos con el status que sea (V14).
+// value es el de gold (solo minutos K): leerlo aca dibujaria dos veces lo mismo.
 const HORAS_SILVER = `
-  SELECT h.ts_hour AS t, s.station_code, h.parameter_code, h.value
+  SELECT h.ts_hour AS t, s.station_code, h.parameter_code, h.value_raw AS value
   FROM silver.hourly_reading h
   JOIN dim.stations s USING (station_id)
   WHERE s.station_code = ANY($1) AND h.parameter_code = ANY($2)
@@ -88,7 +90,7 @@ const HORAS_GOLD = `
 // Aires: el mismo bloque que usa gold.v_daily.
 const DIAS_SILVER = `
   SELECT (date_trunc('day', h.ts_hour AT TIME ZONE '${TZ}') AT TIME ZONE '${TZ}') AS t,
-         s.station_code, h.parameter_code, avg(h.value) AS value
+         s.station_code, h.parameter_code, avg(h.value_raw) AS value
   FROM silver.hourly_reading h
   JOIN dim.stations s USING (station_id)
   WHERE s.station_code = ANY($1) AND h.parameter_code = ANY($2)

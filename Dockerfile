@@ -33,7 +33,6 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # hereda y los valores reales llegan como podman secrets.
 RUN DATABASE_URL=postgresql://build:build@build.invalid/build \
     SESSION_SECRET=YnVpbGQtb25seS1kdW1teS1zZWNyZXQtMzJieXRlcw== \
-    INFLUXDB_TOKEN=build-dummy-token \
     npm run build
 
 # Los scripts de operación van aparte del server: standalone solo incluye lo que
