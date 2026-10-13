@@ -13,7 +13,14 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { esGold, ordenarSeries, serieBase, seriesDe } from "@/lib/datos/series";
+import {
+  type FuenteCruda,
+  fuenteCruda,
+  ordenarSeries,
+  serieBase,
+  seriesDe,
+  seriesDeUnaFuente,
+} from "@/lib/datos/series";
 
 interface ChartProps {
   data: Record<string, string | number | null>[];
@@ -55,10 +62,9 @@ export default function Chart({ data }: ChartProps) {
   // Verifico si el contaminante seleccionado por el usuario es NOx totales
   // para mostrar grafico de area acumulativo no + no2 y nox
   const isNox = locations.some((location) => location.includes("NOx"));
-  // El apilado de NO + NO2 se arma con UNA fuente: si estan silver y gold, con
-  // silver; apilar las dos sumaria dos veces la misma concentracion.
-  const silverSeries = locations.filter((l) => !esGold(l));
-  const areaSeries = silverSeries.length > 0 ? silverSeries : locations;
+  // El apilado de NO + NO2 se arma con UNA fuente (validados, o la primera cruda
+  // que haya): apilar varias sumaria dos veces la misma concentracion.
+  const areaSeries = seriesDeUnaFuente(locations);
 
   // Colores predefinidos para cada estación
   const stationColor: Record<string, string> = {
@@ -89,10 +95,21 @@ export default function Chart({ data }: ChartProps) {
     otra: "var(--color-otra)",
   };
 
-  // La serie de gold va con el color de su estacion y punteada: es el mismo dato,
-  // filtrado por el 75 %.
+  // Todas las fuentes de una estacion llevan su color; las crudas van con otro
+  // trazo para distinguirlas de los validados.
   const color = (serie: string) =>
     stationColor[serieBase(serie)] ?? "var(--color-otra)";
+
+  const TRAZO_CRUDA: Record<FuenteCruda, string> = {
+    crudo: "2 3",
+    conAlarmas: "6 3",
+    sinAlarmas: "1 4",
+  };
+  const trazo = (serie: string) => {
+    const cruda = fuenteCruda(serie);
+    if (cruda) return TRAZO_CRUDA[cruda];
+    return serie.includes("NOx") ? "4 7" : "4 0";
+  };
 
   const displayName = (location: string) => {
     let label = location;
@@ -231,13 +248,7 @@ export default function Chart({ data }: ChartProps) {
               name={displayName(location)}
               dot={false}
               strokeWidth={location.includes("NOx") ? 3 : 2}
-              strokeDasharray={
-                esGold(location)
-                  ? "2 3"
-                  : location.includes("NOx")
-                    ? "4 7"
-                    : "4 0"
-              }
+              strokeDasharray={trazo(location)}
             />
           ))}
         </LineChart>

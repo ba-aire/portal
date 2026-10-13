@@ -6,7 +6,12 @@ import type { FiltrosType } from "@/app/(main)/datos/contaminante/components/fil
 import SonnerToaster from "@/components/sonner-toaster";
 import useFetchDatos from "@/hooks/useFetchDatos";
 import { withBasePath } from "@/lib/base-path";
-import { type Fuentes, filtrarSeries, STATUS_MINUTO } from "@/lib/datos/series";
+import {
+  FUENTES_INICIAL,
+  type Fuentes,
+  filtrarSeries,
+  STATUS_MINUTO,
+} from "@/lib/datos/series";
 import Chart from "./components/chart";
 import Filtros from "./components/filters";
 import SeriesControls from "./components/series-controls";
@@ -26,7 +31,7 @@ export default function CrudosPage() {
   const [statuses, setStatuses] = useState<Set<string>>(
     () => new Set(STATUS_MINUTO.map((s) => s.value)),
   );
-  const [fuentes, setFuentes] = useState<Fuentes>({ silver: true, gold: true });
+  const [fuentes, setFuentes] = useState<Fuentes>(FUENTES_INICIAL);
   const visibles = useMemo(
     () =>
       Array.isArray(data)

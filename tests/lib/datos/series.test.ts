@@ -3,17 +3,19 @@
 // span de calibracion como si fuera atmosfera, o esconde gold sin avisar.
 import { describe, expect, it } from "vitest";
 import {
+  FUENTES_INICIAL,
   filtrarSeries,
   ordenarSeries,
   STATUS_MINUTO,
-  SUFIJO_GOLD,
   SUFIJO_STATUS,
   serieBase,
   seriesDe,
+  seriesDeUnaFuente,
 } from "@/lib/datos/series";
 
 const TODOS = new Set(STATUS_MINUTO.map((s) => s.value));
-const AMBAS = { silver: true, gold: true };
+const NINGUNA = FUENTES_INICIAL;
+const TODAS = { crudo: true, conAlarmas: true, sinAlarmas: true };
 
 type Fila = Record<string, string | number | null>;
 
@@ -24,9 +26,15 @@ const MINUTOS: Fila[] = [
 ];
 
 const HORAS: Fila[] = [
-  { time: "h0", centenario: 0.5, [`centenario${SUFIJO_GOLD}`]: 0.5 },
-  // Hora invalida para gold (< 75 %): no trae la serie de gold.
-  { time: "h1", centenario: 0.7 },
+  {
+    time: "h0",
+    "centenario (validados)": 0.5,
+    "centenario (crudo)": 0.9,
+    "centenario (crudo con alarmas)": 0.6,
+    "centenario (crudo sin alarmas)": 0.5,
+  },
+  // Hora invalida para gold (< 75 %): no trae validados, si las crudas.
+  { time: "h1", "centenario (crudo)": 0.7 },
 ];
 
 describe("filtrarSeries", () => {
@@ -34,7 +42,7 @@ describe("filtrarSeries", () => {
     it("con todos los status elegidos muestra todo, sin las columnas de status", () => {
       const r = filtrarSeries(MINUTOS, "minute", {
         statuses: TODOS,
-        fuentes: AMBAS,
+        fuentes: NINGUNA,
       });
 
       expect(r).toEqual([
@@ -47,7 +55,7 @@ describe("filtrarSeries", () => {
     it("pone en null (no saca la fila) los minutos de un status no elegido", () => {
       const r = filtrarSeries(MINUTOS, "minute", {
         statuses: new Set(["ok", "alarm"]),
-        fuentes: AMBAS,
+        fuentes: NINGUNA,
       });
 
       expect(r[1]).toEqual({ time: "t1", centenario: null });
@@ -56,40 +64,56 @@ describe("filtrarSeries", () => {
   });
 
   describe("por hora", () => {
-    it("muestra silver y gold", () => {
+    it("por defecto muestra solo los validados", () => {
       const r = filtrarSeries(HORAS, "hour", {
         statuses: TODOS,
-        fuentes: AMBAS,
+        fuentes: NINGUNA,
+      });
+
+      expect(r).toEqual([
+        { time: "h0", "centenario (validados)": 0.5 },
+        { time: "h1" },
+      ]);
+    });
+
+    it("prende las crudas de a una", () => {
+      const r = filtrarSeries(HORAS, "hour", {
+        statuses: TODOS,
+        fuentes: { ...NINGUNA, conAlarmas: true },
       });
 
       expect(r[0]).toEqual({
         time: "h0",
-        centenario: 0.5,
-        "centenario (gold)": 0.5,
+        "centenario (validados)": 0.5,
+        "centenario (crudo con alarmas)": 0.6,
       });
     });
 
-    it("sin silver queda solo gold, y viceversa", () => {
-      const soloGold = filtrarSeries(HORAS, "hour", {
+    it("con las tres crudas prendidas muestra las cuatro columnas", () => {
+      const r = filtrarSeries(HORAS, "hour", {
         statuses: TODOS,
-        fuentes: { silver: false, gold: true },
-      });
-      const soloSilver = filtrarSeries(HORAS, "day", {
-        statuses: TODOS,
-        fuentes: { silver: true, gold: false },
+        fuentes: TODAS,
       });
 
-      expect(soloGold[0]).toEqual({ time: "h0", "centenario (gold)": 0.5 });
-      expect(soloSilver[0]).toEqual({ time: "h0", centenario: 0.5 });
+      expect(Object.keys(r[0])).toHaveLength(5); // time + 4
+      expect(r[1]).toEqual({ time: "h1", "centenario (crudo)": 0.7 });
+    });
+
+    it("en las medias moviles solo hay validados, vengan como vengan los flags", () => {
+      const moviles: Fila[] = [{ time: "m0", "centenario (validados)": 0.4 }];
+
+      expect(
+        filtrarSeries(moviles, "mov8h", { statuses: TODOS, fuentes: TODAS }),
+      ).toEqual(moviles);
     });
 
     it("no filtra por status fuera del intervalo por minuto", () => {
       const r = filtrarSeries(HORAS, "hour", {
         statuses: new Set(),
-        fuentes: AMBAS,
+        fuentes: TODAS,
       });
 
-      expect(r[1]).toEqual({ time: "h1", centenario: 0.7 });
+      expect(r[1]).toEqual({ time: "h1", "centenario (crudo)": 0.7 });
     });
   });
 });
@@ -99,21 +123,59 @@ describe("seriesDe / serieBase", () => {
     expect(seriesDe(MINUTOS)).toEqual(["centenario"]);
   });
 
-  it("la serie de gold comparte base (y color) con la de silver", () => {
-    expect(serieBase("cordoba NO2 (gold)")).toBe("cordoba NO2");
+  it("todas las fuentes comparten base (y color) con la serie por minuto", () => {
+    expect(serieBase("cordoba NO2 (validados)")).toBe("cordoba NO2");
+    expect(serieBase("cordoba NO2 (crudo)")).toBe("cordoba NO2");
+    expect(serieBase("cordoba NO2 (crudo con alarmas)")).toBe("cordoba NO2");
+    expect(serieBase("cordoba NO2 (crudo sin alarmas)")).toBe("cordoba NO2");
     expect(serieBase("cordoba NO2")).toBe("cordoba NO2");
   });
 });
 
 describe("ordenarSeries", () => {
-  it("deja cada serie seguida de su version de gold, sin importar como llegaron", () => {
+  it("deja cada serie con sus fuentes juntas: validados y despues las crudas", () => {
     expect(
       ordenarSeries([
-        "cordoba (gold)",
-        "cordoba",
-        "centenario (gold)",
-        "centenario",
+        "cordoba (crudo sin alarmas)",
+        "cordoba (crudo)",
+        "centenario (crudo con alarmas)",
+        "cordoba (validados)",
+        "centenario (validados)",
       ]),
-    ).toEqual(["centenario", "centenario (gold)", "cordoba", "cordoba (gold)"]);
+    ).toEqual([
+      "centenario (validados)",
+      "centenario (crudo con alarmas)",
+      "cordoba (validados)",
+      "cordoba (crudo)",
+      "cordoba (crudo sin alarmas)",
+    ]);
+  });
+});
+
+describe("seriesDeUnaFuente", () => {
+  it("para apilar prefiere validados", () => {
+    expect(
+      seriesDeUnaFuente([
+        "centenario NO (validados)",
+        "centenario NO (crudo)",
+        "centenario NO2 (validados)",
+      ]),
+    ).toEqual(["centenario NO (validados)", "centenario NO2 (validados)"]);
+  });
+
+  it("sin validados usa la primera cruda, nunca varias", () => {
+    expect(
+      seriesDeUnaFuente([
+        "centenario NO (crudo sin alarmas)",
+        "centenario NO (crudo)",
+      ]),
+    ).toEqual(["centenario NO (crudo)"]);
+  });
+
+  it("por minuto (sin fuente) devuelve todas", () => {
+    expect(seriesDeUnaFuente(["centenario NO", "centenario NO2"])).toEqual([
+      "centenario NO",
+      "centenario NO2",
+    ]);
   });
 });

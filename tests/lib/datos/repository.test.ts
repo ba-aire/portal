@@ -12,6 +12,8 @@ type Fila = {
   parameter_code: string;
   value: string | number | null;
   status?: string;
+  value_raw?: string | null;
+  value_con_alarma?: string | null;
 };
 
 const { queryAiredb, state } = vi.hoisted(() => {
@@ -43,6 +45,25 @@ function fila(
   status?: string,
 ): Fila {
   return { t: new Date(t), station_code, parameter_code, value, status };
+}
+
+/** Una fila de silver.hourly_reading con sus tres columnas crudas (V14). */
+function horaSilver(
+  t: string,
+  station_code: string,
+  parameter_code: string,
+  raw: string | null,
+  conAlarma: string | null = raw,
+  sinAlarma: string | null = raw,
+): Fila {
+  return {
+    t: new Date(t),
+    station_code,
+    parameter_code,
+    value: sinAlarma,
+    value_raw: raw,
+    value_con_alarma: conAlarma,
+  };
 }
 
 /** Responde segun la tabla o vista que aparezca en el SQL. */
@@ -89,28 +110,37 @@ describe("fetchDatosPorContaminante", () => {
       const silver = sqls().find((q) =>
         q.includes("FROM silver.hourly_reading h JOIN"),
       );
-      // Silver es el crudo (V14): value ya es el de gold, solo minutos K.
-      expect(silver).toContain("h.value_raw AS value");
+      // Las tres columnas crudas (V14): todos los minutos, ok + alarma y solo ok.
+      expect(silver).toContain("h.value_raw, h.value_con_alarma, h.value");
       const gold = sqls().find((q) => q.includes("FROM gold.v_hourly"));
       expect(gold).toContain("AND g.is_valid");
     });
 
-    it("por dia lee gold.v_daily y agrega silver por dia de Buenos Aires", async () => {
-      await fetchDatosPorContaminante({
-        ...BASE,
-        contaminant: "co",
-        interval: "day",
-      });
+    it.each([
+      ["mov8h", "gold.v_moving_8h", "8 hours"],
+      ["mov24h", "gold.v_moving_24h", "24 hours"],
+    ] as const)(
+      "por %s lee solo %s, con ventanas validas y sin tocar silver",
+      async (interval, vista, ventana) => {
+        await fetchDatosPorContaminante({
+          ...BASE,
+          contaminant: "co",
+          interval,
+        });
 
-      expect(sqls().some((q) => q.includes("FROM gold.v_daily"))).toBe(true);
-      expect(
-        sqls().some(
-          (q) =>
-            q.includes("America/Argentina/Buenos_Aires") &&
-            q.includes("avg(h.value_raw)"),
-        ),
-      ).toBe(true);
-    });
+        expect(sqls()).toHaveLength(2); // la consulta y "procesado hasta"
+        const movil = sqls().find((q) => q.includes(vista));
+        expect(movil).toContain("AND g.is_valid");
+        // El punto va en el final de la ventana; el filtro se corre para seguir
+        // usando el indice por window_start.
+        expect(movil).toContain("g.window_end AS t");
+        expect(movil).toContain(`$3::timestamptz - INTERVAL '${ventana}'`);
+        expect(movil).toContain(`$4::timestamptz - INTERVAL '${ventana}'`);
+        expect(sqls().some((q) => q.includes("silver.hourly_reading h"))).toBe(
+          false,
+        );
+      },
+    );
 
     it("pasa estaciones, parametros y rango como parametros, nunca dentro del SQL", async () => {
       await fetchDatosPorContaminante({
@@ -138,7 +168,7 @@ describe("fetchDatosPorContaminante", () => {
   describe("pivot", () => {
     it("arma una fila por instante con una columna por estacion", async () => {
       state.responder = responderPor({
-        "silver.hourly_reading h": [
+        "gold.v_hourly": [
           fila("2026-10-01T10:00:00Z", "centenario", "co", "0.512"),
           fila("2026-10-01T10:00:00Z", "cordoba", "co", "0.3"),
           fila("2026-10-01T11:00:00Z", "centenario", "co", "0.6"),
@@ -152,15 +182,26 @@ describe("fetchDatosPorContaminante", () => {
       });
 
       expect(data).toEqual([
-        { time: "2026-10-01T10:00:00.000Z", centenario: 0.512, cordoba: 0.3 },
-        { time: "2026-10-01T11:00:00.000Z", centenario: 0.6 },
+        {
+          time: "2026-10-01T10:00:00.000Z",
+          "centenario (validados)": 0.512,
+          "cordoba (validados)": 0.3,
+        },
+        { time: "2026-10-01T11:00:00.000Z", "centenario (validados)": 0.6 },
       ]);
     });
 
-    it("agrega la serie de gold con el sufijo (gold)", async () => {
+    it("arma las cuatro columnas horarias: validados de gold y las tres crudas de silver", async () => {
       state.responder = responderPor({
         "silver.hourly_reading h": [
-          fila("2026-10-01T10:00:00Z", "centenario", "co", "0.5"),
+          horaSilver(
+            "2026-10-01T10:00:00Z",
+            "centenario",
+            "co",
+            "0.9",
+            "0.6",
+            "0.5",
+          ),
         ],
         "gold.v_hourly": [
           fila("2026-10-01T10:00:00Z", "centenario", "co", "0.49"),
@@ -175,9 +216,47 @@ describe("fetchDatosPorContaminante", () => {
 
       expect(data[0]).toEqual({
         time: "2026-10-01T10:00:00.000Z",
-        centenario: 0.5,
-        "centenario (gold)": 0.49,
+        "centenario (crudo)": 0.9,
+        "centenario (crudo con alarmas)": 0.6,
+        "centenario (crudo sin alarmas)": 0.5,
+        "centenario (validados)": 0.49,
       });
+    });
+
+    it("una hora invalida para gold igual trae las crudas, sin validados", async () => {
+      state.responder = responderPor({
+        "silver.hourly_reading h": [
+          horaSilver("2026-10-01T10:00:00Z", "centenario", "co", "0.7"),
+        ],
+      });
+
+      const { data } = await fetchDatosPorContaminante({
+        ...BASE,
+        contaminant: "co",
+        interval: "hour",
+      });
+
+      expect(data[0]).not.toHaveProperty("centenario (validados)");
+      expect(data[0]["centenario (crudo)"]).toBe(0.7);
+    });
+
+    it("en las medias moviles el punto es el del final de la ventana y solo hay validados", async () => {
+      state.responder = responderPor({
+        "gold.v_moving_8h": [
+          // La consulta ya devuelve window_end como t.
+          fila("2026-10-01T08:00:00Z", "centenario", "co", "0.4"),
+        ],
+      });
+
+      const { data } = await fetchDatosPorContaminante({
+        ...BASE,
+        contaminant: "co",
+        interval: "mov8h",
+      });
+
+      expect(data).toEqual([
+        { time: "2026-10-01T08:00:00.000Z", "centenario (validados)": 0.4 },
+      ]);
     });
 
     it("por minuto agrega el status de cada serie", async () => {
@@ -204,8 +283,8 @@ describe("fetchDatosPorContaminante", () => {
     it("nombra las series de NOx y de PM10+PM2.5 como la UI espera", async () => {
       state.responder = responderPor({
         "silver.hourly_reading h": [
-          fila("2026-10-01T10:00:00Z", "cordoba", "no2", "20"),
-          fila("2026-10-01T10:00:00Z", "cordoba", "nox", "30"),
+          horaSilver("2026-10-01T10:00:00Z", "cordoba", "no2", "20"),
+          horaSilver("2026-10-01T10:00:00Z", "cordoba", "nox", "30"),
         ],
       });
 
@@ -215,13 +294,16 @@ describe("fetchDatosPorContaminante", () => {
         interval: "hour",
       });
 
-      expect(data[0]).toMatchObject({ "cordoba NO2": 20, "cordoba NOx": 30 });
+      expect(data[0]).toMatchObject({
+        "cordoba NO2 (crudo)": 20,
+        "cordoba NOx (crudo)": 30,
+      });
     });
 
     it("no corre el PM10 en el tiempo: lo resuelve la horaria de silver (V13)", async () => {
       state.responder = responderPor({
         "silver.hourly_reading h": [
-          fila("2026-10-01T10:00:00Z", "centenario", "pm10", "42"),
+          horaSilver("2026-10-01T10:00:00Z", "centenario", "pm10", "42"),
         ],
       });
 
@@ -231,9 +313,9 @@ describe("fetchDatosPorContaminante", () => {
         interval: "hour",
       });
 
-      expect(data[0]).toEqual({
+      expect(data[0]).toMatchObject({
         time: "2026-10-01T10:00:00.000Z",
-        centenario: 42,
+        "centenario (crudo)": 42,
       });
     });
 

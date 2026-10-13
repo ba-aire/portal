@@ -130,7 +130,8 @@ describe("DatosService.getDatosPorContaminante", () => {
     expect(datosService.getAvailableIntervals()).toEqual([
       "minute",
       "hour",
-      "day",
+      "mov8h",
+      "mov24h",
     ]);
     expect(datosService.getAvailableLocations()).toEqual([
       "centenario",

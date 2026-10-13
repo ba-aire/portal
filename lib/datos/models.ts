@@ -24,7 +24,8 @@ export const ContaminantEnum = z.enum([
 ]);
 export type Contaminant = z.infer<typeof ContaminantEnum>;
 
-export const IntervalEnum = z.enum(["minute", "hour", "day"]);
+// mov8h y mov24h: media movil de 8 y 24 horas, de gold (una fila por hora).
+export const IntervalEnum = z.enum(["minute", "hour", "mov8h", "mov24h"]);
 export type Interval = z.infer<typeof IntervalEnum>;
 
 export const LocationEnum = z.enum([
@@ -70,7 +71,9 @@ export type QueryParams = z.infer<typeof QueryParamsSchema>;
 export const MAX_RANGE_DAYS: Record<Interval, number> = {
   minute: 1, // un día: la franja se elige en el picker (lib/rango-minutal.ts)
   hour: 366,
-  day: 1830, // ~5 años
+  // Una fila por hora, igual que la horaria.
+  mov8h: 366,
+  mov24h: 366,
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;

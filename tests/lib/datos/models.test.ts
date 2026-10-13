@@ -91,7 +91,8 @@ describe("BoundedQueryParamsSchema", () => {
     it.each([
       ["minute", MAX_RANGE_DAYS.minute],
       ["hour", MAX_RANGE_DAYS.hour],
-      ["day", MAX_RANGE_DAYS.day],
+      ["mov8h", MAX_RANGE_DAYS.mov8h],
+      ["mov24h", MAX_RANGE_DAYS.mov24h],
     ])("acepta exactamente el máximo de %s días", (interval, maximo) => {
       expect(parsear({ interval, endDate: masDias(maximo) }).success).toBe(
         true,
@@ -101,7 +102,8 @@ describe("BoundedQueryParamsSchema", () => {
     it.each([
       ["minute", MAX_RANGE_DAYS.minute],
       ["hour", MAX_RANGE_DAYS.hour],
-      ["day", MAX_RANGE_DAYS.day],
+      ["mov8h", MAX_RANGE_DAYS.mov8h],
+      ["mov24h", MAX_RANGE_DAYS.mov24h],
     ])("rechaza un día más que el máximo de %s", (interval, maximo) => {
       const r = parsear({ interval, endDate: masDias(maximo + 1) });
 
