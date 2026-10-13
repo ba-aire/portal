@@ -51,7 +51,8 @@ export const contaminantesOptions = [
 export const promedioOptions = [
   { label: "Minutos", value: "minute" },
   { label: "Horas", value: "hour" },
-  { label: "Días", value: "day" },
+  { label: "Media móvil 8 h", value: "mov8h" },
+  { label: "Media móvil 24 h", value: "mov24h" },
 ];
 
 export const locationsOptions = [

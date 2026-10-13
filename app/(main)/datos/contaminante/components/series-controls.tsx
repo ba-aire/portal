@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDownIcon } from "lucide-react";
+import { ChevronDownIcon, Info } from "lucide-react";
 import type { Dispatch, SetStateAction } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -10,7 +10,17 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { type Fuentes, STATUS_MINUTO } from "@/lib/datos/series";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  FUENTES_CRUDAS,
+  type Fuentes,
+  STATUS_MINUTO,
+} from "@/lib/datos/series";
 
 interface SeriesControlsProps {
   interval: string;
@@ -31,10 +41,38 @@ const formatoFecha = new Intl.DateTimeFormat("es-AR", {
   timeZone: "America/Argentina/Buenos_Aires",
 });
 
+const DETALLE_VALIDADOS_HORA =
+  "Promedio horario publicado: solo minutos OK, y solo si la hora tiene al menos 45 de 60 minutos válidos (75 %). Las horas que no llegan al 75 % quedan sin dato.";
+const DETALLE_VALIDADOS_MOVIL =
+  "Media móvil publicada, calculada sobre las horas validadas. Es válida con al menos el 75 % de las horas (6 de 8, 18 de 24). Cada punto va en el final de su ventana: el de las 08:00 es el promedio de 00:00 a 08:00.";
+
+/** El icono "i" con el detalle de una columna al pasar el mouse. */
+function InfoTip({ etiqueta, texto }: { etiqueta: string; texto: string }) {
+  return (
+    <TooltipProvider delayDuration={100}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            aria-label={`Qué es ${etiqueta}`}
+            className="text-muted-foreground hover:text-primary cursor-help"
+          >
+            <Info className="size-4" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-72 text-pretty">
+          {texto}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
 /**
  * Que se muestra del resultado ya traido. Por minuto: un checkbox por status del
- * minuto en silver. Por hora y por dia: silver (todo lo que paso) y gold (solo
- * las ventanas validas, >= 75 %), por separado. Nada de esto vuelve a consultar.
+ * minuto en silver. Por hora: los validados (siempre) y, a elección, las tres
+ * columnas crudas de silver. En las medias móviles solo hay validados. Nada de
+ * esto vuelve a consultar.
  */
 export default function SeriesControls({
   interval,
@@ -44,6 +82,8 @@ export default function SeriesControls({
   onFuentesChange,
   procesadoHasta,
 }: SeriesControlsProps) {
+  const crudasPrendidas = FUENTES_CRUDAS.filter((f) => fuentes[f.id]).length;
+
   const toggleStatus = (value: string, checked: boolean) => {
     onStatusesChange((prev) => {
       const set = new Set(prev);
@@ -88,33 +128,58 @@ export default function SeriesControls({
           </PopoverContent>
         </Popover>
       ) : (
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="fuente-silver"
-              checked={fuentes.silver}
-              onCheckedChange={(v) =>
-                onFuentesChange((prev) => ({ ...prev, silver: Boolean(v) }))
+        <div className="flex flex-wrap items-center gap-6">
+          <span className="flex items-center gap-2 text-sm font-medium">
+            Validados
+            <InfoTip
+              etiqueta="Validados"
+              texto={
+                interval === "hour"
+                  ? DETALLE_VALIDADOS_HORA
+                  : DETALLE_VALIDADOS_MOVIL
               }
             />
-            <Label htmlFor="fuente-silver" className="cursor-pointer">
-              Silver{" "}
-              <span className="text-muted-foreground">(minutos válidos)</span>
-            </Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="fuente-gold"
-              checked={fuentes.gold}
-              onCheckedChange={(v) =>
-                onFuentesChange((prev) => ({ ...prev, gold: Boolean(v) }))
-              }
-            />
-            <Label htmlFor="fuente-gold" className="cursor-pointer">
-              Gold{" "}
-              <span className="text-muted-foreground">(válido con ≥ 75 %)</span>
-            </Label>
-          </div>
+          </span>
+          {interval === "hour" && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-[240px] justify-between font-normal"
+                >
+                  {crudasPrendidas === 0
+                    ? "Columnas crudas: ninguna"
+                    : `Columnas crudas: ${crudasPrendidas} de ${FUENTES_CRUDAS.length}`}
+                  <ChevronDownIcon />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72 p-2" align="start">
+                <div className="flex flex-col gap-2">
+                  {FUENTES_CRUDAS.map((f) => (
+                    <div key={f.id} className="flex items-center gap-2">
+                      <Checkbox
+                        id={`fuente-${f.id}`}
+                        checked={fuentes[f.id]}
+                        onCheckedChange={(v) =>
+                          onFuentesChange((prev) => ({
+                            ...prev,
+                            [f.id]: Boolean(v),
+                          }))
+                        }
+                      />
+                      <Label
+                        htmlFor={`fuente-${f.id}`}
+                        className="cursor-pointer text-sm font-normal"
+                      >
+                        {f.label}
+                      </Label>
+                      <InfoTip etiqueta={f.label} texto={f.detalle} />
+                    </div>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
         </div>
       )}
       {procesadoHasta && (

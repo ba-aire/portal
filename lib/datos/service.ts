@@ -60,7 +60,7 @@ export class DatosService {
    * Obtiene información sobre los intervalos disponibles
    */
   getAvailableIntervals(): string[] {
-    return ["minute", "hour", "day"];
+    return ["minute", "hour", "mov8h", "mov24h"];
   }
 
   /**
