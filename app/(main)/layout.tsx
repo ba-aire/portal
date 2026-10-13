@@ -6,7 +6,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import Loading from "../loading";
 
 export const metadata = {
-  title: "SIRCA - Inicio",
+  title: "BA Aire - Inicio",
   description: "Sistema de Gestion de la Red de Calidad del Aire.",
 };
 
