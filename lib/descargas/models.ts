@@ -69,7 +69,7 @@ export type QueryParams = z.infer<typeof QueryParamsSchema>;
 // lib/datos/models.ts: las tablas son minutales y sin límite un solo request
 // puede pedir años de datos.
 export const MAX_RANGE_DAYS: Record<Integration, number> = {
-  minute: 31,
+  minute: 1, // un día: la franja se elige en el picker (lib/rango-minutal.ts)
   hour: 366,
 };
 
@@ -94,7 +94,7 @@ export const BoundedQueryParamsSchema = QueryParamsSchema.superRefine(
     if (end - start > maxDays * DAY_MS) {
       ctx.addIssue({
         code: "custom",
-        message: `El rango máximo para la integración "${p.integration}" es de ${maxDays} días.`,
+        message: `El rango máximo para la integración "${p.integration}" es de ${maxDays} ${maxDays === 1 ? "día" : "días"}.`,
         path: ["endDate"],
       });
     }
@@ -197,8 +197,14 @@ export const filtrosSchema = z
         message: 'Seleccioná una fecha "hasta" válida.',
       }),
     ),
+    startHour: z.number().int().min(0).max(23).optional(),
+    endHour: z.number().int().min(1).max(24).optional(),
   })
   .refine((d) => d.startDate.getTime() <= d.endDate.getTime(), {
     message: 'La fecha "desde" debe ser anterior o igual a la fecha "hasta".',
     path: ["startDate"],
+  })
+  .refine((d) => (d.endHour ?? 24) > (d.startHour ?? 0), {
+    message: 'La hora "hasta" debe ser posterior a la hora "desde".',
+    path: ["endHour"],
   });

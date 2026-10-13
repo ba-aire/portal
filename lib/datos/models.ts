@@ -68,7 +68,7 @@ export type QueryParams = z.infer<typeof QueryParamsSchema>;
 // años de minutos y comerse la memoria del portal y la del Postgres de la VM.
 // El techo acompaña la granularidad — a menor resolución, más rango razonable.
 export const MAX_RANGE_DAYS: Record<Interval, number> = {
-  minute: 31,
+  minute: 1, // un día: la franja se elige en el picker (lib/rango-minutal.ts)
   hour: 366,
   day: 1830, // ~5 años
 };
@@ -94,7 +94,7 @@ export const BoundedQueryParamsSchema = QueryParamsSchema.superRefine(
     if (end - start > maxDays * DAY_MS) {
       ctx.addIssue({
         code: "custom",
-        message: `El rango máximo para el intervalo "${p.interval}" es de ${maxDays} días.`,
+        message: `El rango máximo para el intervalo "${p.interval}" es de ${maxDays} ${maxDays === 1 ? "día" : "días"}.`,
         path: ["endDate"],
       });
     }
@@ -175,8 +175,14 @@ export const filtrosSchema = z
         message: 'Seleccioná una fecha "hasta" válida.',
       }),
     ),
+    startHour: z.number().int().min(0).max(23).optional(),
+    endHour: z.number().int().min(1).max(24).optional(),
   })
   .refine((d) => d.startDate.getTime() <= d.endDate.getTime(), {
     message: 'La fecha "desde" debe ser anterior o igual a la fecha "hasta".',
     path: ["startDate"],
+  })
+  .refine((d) => (d.endHour ?? 24) > (d.startHour ?? 0), {
+    message: 'La hora "hasta" debe ser posterior a la hora "desde".',
+    path: ["endHour"],
   });
