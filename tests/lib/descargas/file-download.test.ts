@@ -70,10 +70,14 @@ function hojaDe(workbook: ExcelJS.Workbook, nombre: string): ExcelJS.Worksheet {
   return hoja;
 }
 
-/** Número de la fila de encabezados: la que empieza con "Fecha y Hora". */
+/**
+ * Número de la fila de encabezados: la que empieza con la columna de tiempo
+ * ("Fecha y Hora" en la horaria, "Fecha y hora (inicio del minuto)" en la minutal).
+ */
 function filaEncabezados(hoja: ExcelJS.Worksheet): number {
   for (let i = 1; i <= hoja.rowCount; i++) {
-    if (hoja.getRow(i).getCell(1).value === "Fecha y Hora") return i;
+    const valor = hoja.getRow(i).getCell(1).value;
+    if (typeof valor === "string" && /^Fecha y hora/i.test(valor)) return i;
   }
   throw new Error("La hoja no tiene fila de encabezados");
 }
@@ -206,6 +210,24 @@ describe("downloadAsCSV", () => {
     expect(encabezado.startsWith("Fecha y Hora,")).toBe(true);
     expect(encabezado).toContain("Co");
     expect(encabezado).toContain("No2");
+  });
+
+  // airedb rotula la hora por su inicio: la fila de las 11:00 (14:00 UTC) son
+  // los minutos 11:00 a 11:59, y el CSV lo dice igual que el Excel.
+  it("rotula la fila horaria con el rango que cubre", async () => {
+    downloadAsCSV([{ time: "2026-01-15T14:00:00Z", co: 1 }], "x.csv", "hour");
+
+    expect((await filasCSV())[1]).toMatch(/^"15\/01\/2026, 11:00 a 12:00 hs",/);
+  });
+
+  it("rotula la fila minutal con el inicio del minuto", async () => {
+    downloadAsCSV([{ time: FILA.time, co: 1 }], "x.csv", "minute");
+
+    const [encabezado, fila] = await filasCSV();
+    expect(encabezado.startsWith("Fecha y hora (inicio del minuto),")).toBe(
+      true,
+    );
+    expect(fila).toMatch(/^"15\/01\/2026, 11:30",/);
   });
 
   // Las columnas salen de TABLE_CONFIG, no de las claves presentes en los
