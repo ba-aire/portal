@@ -14,6 +14,11 @@ import {
   promedioOptions,
 } from "@/app/(main)/descargas/components/filters";
 import type { DataRow } from "@/hooks/useFetchDescargas";
+import {
+  encabezadoPeriodo,
+  formatInstante,
+  formatPeriodo,
+} from "@/lib/periodo";
 import { DERIVED_COLUMNS, TABLE_CONFIG } from "./config";
 
 // Listas de columnas numéricas agrupadas por cantidad de decimales
@@ -303,59 +308,24 @@ function formatCSVValue(value: string | number | null | undefined): string {
 }
 
 /**
- * Formatea la fecha de un bin horario con el rango que cubre: la fila "14:00"
- * contiene los minutos de 14:01 a 15:00, así que mostrar el rango completo
- * evita leerla como una medición puntual de las 14:00.
- *
- * @param dateString Fecha del bin en formato string ISO.
- * @returns Fecha y rango horario formateados (DD/MM/AAAA, HH:mm a HH:mm hs).
- */
-function formatHourRangeDate(dateString: string): string {
-  try {
-    const start = new Date(dateString);
-    const end = new Date(start.getTime() + 60 * 60 * 1000);
-    const timeZone = "America/Argentina/Buenos_Aires";
-    const fecha = new Intl.DateTimeFormat("es-AR", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      timeZone,
-    }).format(start);
-    const hora = new Intl.DateTimeFormat("es-AR", {
-      hour: "2-digit",
-      minute: "2-digit",
-      // Fijo en 24 hs: sin esto, el formato depende del ICU del navegador
-      hourCycle: "h23",
-      timeZone,
-    });
-    return `${fecha}, ${hora.format(start)} a ${hora.format(end)} hs`;
-  } catch {
-    return dateString;
-  }
-}
-
-/**
- * Formatea una fecha ISO a un formato local legible (es-AR).
+ * Fecha de la fila en hora argentina, para comparar días (banda y bordes).
  *
  * @param dateString Fecha en formato string ISO.
  * @returns Fecha y hora formateada (DD/MM/AAAA, HH:mm).
  */
 function formatDate(dateString: string): string {
-  try {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat("es-AR", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      // Fijo en 24 hs: sin esto, el formato depende del ICU del navegador
-      hourCycle: "h23",
-      timeZone: "America/Argentina/Buenos_Aires",
-    }).format(date);
-  } catch {
-    return dateString;
-  }
+  const date = new Date(dateString);
+  return Number.isNaN(date.getTime()) ? dateString : formatInstante(date);
+}
+
+/**
+ * Rótulo de la fila: la fila horaria "14:00" son los minutos 14:00 a 14:59
+ * (airedb rotula por el inicio), así que se muestra el rango que cubre
+ * ("14:00 a 15:00 hs") para no leerla como una medición puntual. El minuto va
+ * con su inicio.
+ */
+function formatRowTime(dateString: string, isHour: boolean): string {
+  return formatPeriodo(dateString, isHour ? "hour" : "minute");
 }
 
 /**
@@ -376,8 +346,9 @@ export function downloadAsCSV(
 
   // Obtener todas las columnas ordenadas según TABLE_CONFIG
   const columns = getOrderedColumns(data, integration);
+  const isHour = resolveIntegration(data, integration) === "hour";
   const headers = [
-    "Fecha y Hora",
+    encabezadoPeriodo(isHour ? "hour" : "minute"),
     ...columns.map((col) => {
       if (col === "catalinas") return "La Boca";
       return col.charAt(0).toUpperCase() + col.slice(1);
@@ -390,7 +361,7 @@ export function downloadAsCSV(
   // Agregar filas de datos
   data.forEach((row) => {
     const values = [
-      formatDate(row.time),
+      formatRowTime(row.time, isHour),
       ...columns.map((col) => {
         const value = row[col];
         if (value === null || value === undefined) {
@@ -509,7 +480,7 @@ function addDataToWorksheet(
   columns: string[],
   options: WorksheetOptions = {},
 ) {
-  const totalColumns = columns.length + 1; // +1 por "Fecha y Hora"
+  const totalColumns = columns.length + 1; // +1 por la columna de tiempo
 
   // Notas aclaratorias arriba de la grilla, cada una fusionada a lo ancho y
   // arrancando en la primera columna, sin bordes que corten el texto
@@ -544,7 +515,7 @@ function addDataToWorksheet(
 
   // Agregar encabezados
   const headers = [
-    "Fecha y Hora",
+    encabezadoPeriodo(options.hourRangeLabels ? "hour" : "minute"),
     ...columns.map((col) => {
       const name = options.stripRawSuffix ? baseColumnName(col) : col;
       if (name === "catalinas") return "La Boca";
@@ -566,9 +537,7 @@ function addDataToWorksheet(
   let dayParity = 0;
   data.forEach((row) => {
     const values: (string | number)[] = [
-      options.hourRangeLabels
-        ? formatHourRangeDate(row.time)
-        : formatDate(row.time),
+      formatRowTime(row.time, Boolean(options.hourRangeLabels)),
       ...columns.map((col) => {
         const value = row[col];
         if (value === null || value === undefined) {
@@ -631,8 +600,9 @@ function addDataToWorksheet(
   // atraviesa las notas fusionadas de arriba.
   worksheet.views = [{ state: "frozen", ySplit: headerRow.number }];
 
-  // Ajustar ancho de columnas (el rango horario es más largo que la hora puntual)
-  worksheet.getColumn(1).width = options.hourRangeLabels ? 28 : 20;
+  // Ajustar ancho de columnas: el rango horario es más largo que la hora
+  // puntual, y en la minutal manda el encabezado ("... (inicio del minuto)")
+  worksheet.getColumn(1).width = options.hourRangeLabels ? 28 : 32;
   columns.forEach((_, index) => {
     worksheet.getColumn(index + 2).width = 15;
   });

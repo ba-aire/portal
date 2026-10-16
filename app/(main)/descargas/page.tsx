@@ -118,7 +118,7 @@ export default function DescargasPage() {
               </Select>
             </div>
           </div>
-          <Table data={data} />
+          <Table data={data} interval={filters.integration} />
         </>
       )}
       {Array.isArray(data) && data.length === 0 && !isLoading && !error && (

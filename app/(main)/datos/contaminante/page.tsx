@@ -12,6 +12,7 @@ import {
   filtrarSeries,
   STATUS_MINUTO,
 } from "@/lib/datos/series";
+import type { Periodo } from "@/lib/periodo";
 import Chart from "./components/chart";
 import Filtros from "./components/filters";
 import SeriesControls from "./components/series-controls";
@@ -85,7 +86,7 @@ export default function CrudosPage() {
             procesadoHasta={procesadoHasta}
           />
           <Chart data={visibles ?? []} />
-          <Table data={visibles ?? []} />
+          <Table data={visibles ?? []} interval={filters.interval as Periodo} />
         </>
       )}
       {Array.isArray(data) && data.length === 0 && !isLoading && !error && (

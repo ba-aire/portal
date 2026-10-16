@@ -1,10 +1,13 @@
 import { ordenarSeries, seriesDe } from "@/lib/datos/series";
+import { encabezadoPeriodo, formatPeriodo, type Periodo } from "@/lib/periodo";
 
 interface TableProps {
   data: Record<string, string | number | null>[];
+  /** Período de cada fila: define el rótulo de la columna de tiempo. */
+  interval: Periodo;
 }
 
-export default function Table({ data }: TableProps) {
+export default function Table({ data, interval }: TableProps) {
   if (!Array.isArray(data) || data.length === 0) {
     return (
       <div className="overflow-x-auto p-2">
@@ -32,7 +35,7 @@ export default function Table({ data }: TableProps) {
       <table className="min-w-full border text-sm">
         <thead>
           <tr className="bg-gray-100">
-            <th className="border px-2 py-1">Fecha y Hora</th>
+            <th className="border px-2 py-1">{encabezadoPeriodo(interval)}</th>
             {locations.map((location) => (
               <th key={location} className="border px-2 py-1 capitalize">
                 {displayName(location)}
@@ -44,15 +47,8 @@ export default function Table({ data }: TableProps) {
           {data.map((row) => {
             return (
               <tr key={String(row.time)}>
-                <td className="border px-2 py-1 text-center">
-                  {new Intl.DateTimeFormat("es-AR", {
-                    year: "numeric",
-                    month: "2-digit",
-                    day: "2-digit",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    timeZone: "America/Argentina/Buenos_Aires",
-                  }).format(new Date(String(row.time)))}
+                <td className="border px-2 py-1 text-center whitespace-nowrap">
+                  {formatPeriodo(String(row.time), interval)}
                 </td>
                 {locations.map((location) => (
                   <td key={location} className="border px-2 py-1 text-center">
