@@ -81,14 +81,16 @@ describe("auth-session", () => {
       consoleSpy.mockRestore();
     });
 
-    it("devuelve undefined cuando no se pasa token", async () => {
+    it("devuelve undefined sin loguear cuando no se pasa token", async () => {
       const consoleSpy = vi
         .spyOn(console, "error")
         .mockImplementation(() => {});
 
-      const decoded = await decrypt();
+      expect(await decrypt()).toBeUndefined();
+      expect(await decrypt("")).toBeUndefined();
 
-      expect(decoded).toBeUndefined();
+      // Un visitante sin cookie es el caso normal, no un error de verificación.
+      expect(consoleSpy).not.toHaveBeenCalled();
       consoleSpy.mockRestore();
     });
   });
