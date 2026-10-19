@@ -39,7 +39,11 @@ export async function encrypt(payload: SessionPayload) {
     .sign(encodedKey);
 }
 
-export async function decrypt(session: string | undefined = "") {
+export async function decrypt(session?: string) {
+  // Sin cookie no hay nada que verificar. Pasarle "" a jwtVerify lanza
+  // "Invalid Compact JWS" y llenaba el log en cada request de un visitante sin
+  // sesión (proxy.ts corre decrypt en cada navegación).
+  if (!session) return undefined;
   try {
     const { payload } = await jwtVerify(session, encodedKey, {
       algorithms: ["HS256"],
