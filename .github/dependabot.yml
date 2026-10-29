@@ -23,6 +23,14 @@ updates:
         applies-to: version-updates
         patterns: ["*"]
         update-types: ["minor", "patch"]
+      # Excepción a lo anterior: vitest y @vitest/* se publican en lockstep y
+      # cada plugin pide `peer vitest` con la versión EXACTA. Un major suelto
+      # deja el par desincronizado y `npm ci` falla con ERESOLVE (pasó con
+      # vitest 5: un PR por paquete, los dos rojos). Juntos en un solo PR.
+      vitest:
+        applies-to: version-updates
+        patterns: ["vitest", "@vitest/*"]
+        update-types: ["major"]
       # Los security updates NO se agrupan: cada vulnerabilidad merece su propio
       # PR para poder mergearla sola y rápido, sin arrastrar bumps de rutina.
 
