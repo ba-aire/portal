@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { withBasePath } from "@/lib/base-path";
+import { ventanaMinutal } from "@/lib/rango-minutal";
 import type { FiltrosType } from "../app/(main)/descargas/components/filters";
 
 export interface DataRow extends Record<string, string | number> {
@@ -13,13 +15,33 @@ export default function useFetchDescargas() {
     setIsLoading(true);
     setError("");
     try {
+      // Minutales: un día y una franja horaria. El resto: de fecha a fecha.
+      const { startDate } = filters;
+      const ventana =
+        filters.integration === "minute" && startDate
+          ? ventanaMinutal(startDate, filters.startHour, filters.endHour)
+          : undefined;
       const params = new URLSearchParams({
         integration: filters.integration,
         location: filters.location,
-        startDate: filters.startDate ? filters.startDate.toISOString() : "",
-        endDate: filters.endDate ? filters.endDate.toISOString() : "",
+        startDate: ventana
+          ? ventana.start.toISOString()
+          : filters.startDate
+            ? filters.startDate.toISOString()
+            : "",
+        // "Hasta el 6" es hasta el FINAL del 6: el calendario da la medianoche del
+        // dia elegido, y la API filtra con `< endDate`. Igual que en /datos.
+        endDate: ventana
+          ? ventana.end.toISOString()
+          : filters.endDate
+            ? new Date(
+                filters.endDate.getTime() + 24 * 60 * 60 * 1000,
+              ).toISOString()
+            : "",
       });
-      const response = await fetch(`/api/descargas?${params.toString()}`);
+      const response = await fetch(
+        withBasePath(`/api/descargas?${params.toString()}`),
+      );
       if (!response.ok) {
         const errorText = await response.text();
         setError(errorText || "Error al obtener los datos");

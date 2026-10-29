@@ -1,243 +1,97 @@
-import { influx } from "@/db/influx";
-import {
-  type CoRow,
-  FullLocationDataSchema,
-  type MeteoRow,
-  type NoxRow,
-  type O3Row,
-  type Pm10Row,
-  type Pm25Row,
-  type So2Row,
-} from "./models";
+import { queryAiredb } from "@/db/airedb";
+import { FullLocationDataSchema, type Location } from "./models";
 
-// Función auxiliar para obtener el timestamp más reciente
-function parseFlexibleTimestamp(ts: string | number | Date | null | undefined) {
-  if (ts === null || ts === undefined) return null;
-  if (ts instanceof Date) return ts;
-  if (typeof ts === "number") {
-    const abs = Math.abs(ts);
-    const isMilliseconds = abs > 1e11 || ts.toString().length > 10;
-    return isMilliseconds ? new Date(ts) : new Date(ts * 1000);
-  }
-  // string: try to parse as ISO or numeric string
-  if (typeof ts === "string") {
-    // numeric string?
-    const num = Number(ts);
-    if (!Number.isNaN(num)) {
-      const abs = Math.abs(num);
-      const isMilliseconds = abs > 1e11 || ts.length > 10;
-      return isMilliseconds ? new Date(num) : new Date(num * 1000);
-    }
-    const d = new Date(ts);
-    return Number.isNaN(d.getTime()) ? null : d;
-  }
-  return null;
+// Tiempo real de una estación: la ÚLTIMA LECTURA CRUDA de cada instrumento, tal
+// como llegó a bronze (cada 5-30 s según el equipo), con su status. No es un
+// promedio: los promedios por minuto y por hora viven en silver, y los valida
+// gold. La página de /estaciones la pide cada 5 s por SSE.
+//
+// Los campos de la respuesta se siguen llamando `*_mean` porque es la forma que
+// consume la UI desde la época de InfluxDB (FullLocationDataSchema). Renombrarlos
+// es un cambio de UI aparte; acá el nombre no describe el valor.
+
+/** Measurements de bronze, en el orden de la respuesta. Lista fija: NUNCA viene del request. */
+const MEASUREMENTS = [
+  "co",
+  "nox",
+  "o3",
+  "so2",
+  "pm10",
+  "pm25",
+  "meteo",
+] as const;
+type Measurement = (typeof MEASUREMENTS)[number];
+
+// Hasta dónde se mira hacia atrás. Acota el barrido al chunk más reciente, que
+// no está comprimido, aunque una cabina lleve días sin transmitir. Es mucho más
+// que el umbral de dato viejo (service.ts): lo que cae entre los dos llega a la
+// UI y se marca como vencido, en vez de desaparecer.
+const VENTANA = "15 minutes";
+
+type Fila = {
+  measurement: Measurement;
+  time: Date;
+  status: string | null;
+  // Las columnas de métricas de esa tabla de bronze (co, no, no2, dv, temp...).
+  v: Record<string, number | null>;
+};
+
+// Una sola consulta: cada tabla aporta su fila más reciente para la estación.
+// to_jsonb(t) menos las columnas fijas deja exactamente las métricas, sin
+// repetir acá la lista de columnas de cada tabla (la declara db/contract.yml en
+// ba-aire/data).
+const SQL = MEASUREMENTS.map(
+  (m) => `
+  SELECT '${m}' AS measurement, t."time", t.status,
+         to_jsonb(t) - ARRAY['time', 'location', 'status', '_ingerido_en'] AS v
+  FROM (
+    SELECT * FROM bronze.${m}
+    WHERE location = $1 AND "time" > now() - $2::interval
+    ORDER BY "time" DESC
+    LIMIT 1
+  ) t`,
+).join("\n  UNION ALL");
+
+function latest(times: Array<Date | null>): Date | null {
+  const valid = times.filter((t): t is Date => t !== null);
+  if (valid.length === 0) return null;
+  return new Date(Math.max(...valid.map((t) => t.getTime())));
 }
 
-function getLatestTimestamp(
-  timestamps: Array<string | number | Date | null | undefined>,
-) {
-  const parsed = timestamps
-    .map((t) => parseFlexibleTimestamp(t))
-    .filter((t): t is Date => t !== null);
-  if (parsed.length === 0) return null;
-  return new Date(Math.max(...parsed.map((d) => d.getTime())));
-}
+export async function fetchLastMinuteByLocation(location: Location) {
+  const filas = await queryAiredb<Fila>(SQL, [location, VENTANA]);
+  const por = new Map(filas.map((f) => [f.measurement, f]));
+  const v = (m: Measurement, campo: string) => por.get(m)?.v[campo] ?? null;
+  const status = (m: Measurement) => por.get(m)?.status ?? null;
+  const time = (m: Measurement) => por.get(m)?.time ?? null;
 
-async function getFirstRow<T>(rows: AsyncIterable<T>): Promise<T | null> {
-  for await (const row of rows) {
-    return row;
-  }
-  return null;
-}
-
-export async function fetchLastMinuteByLocation(locationName: string) {
-  const database = "minutales";
-
-  // Query para CO
-  const coQuery = `
-      SELECT time, location, co_mean, status
-      FROM co_minutales 
-      WHERE location = '${locationName}'
-      ORDER BY time DESC 
-      LIMIT 1;
-    `;
-
-  // Query para NOx
-  const noxQuery = `
-      SELECT time, location, no2_mean, no_mean, nox_mean, status
-      FROM nox_minutales 
-      WHERE location = '${locationName}'
-      ORDER BY time DESC 
-      LIMIT 1;
-    `;
-
-  // Query para O3
-  const o3Query = `
-      SELECT time, location, o3_mean, status
-      FROM o3_minutales 
-      WHERE location = '${locationName}'
-      ORDER BY time DESC 
-      LIMIT 1;
-    `;
-
-  // Query para SO2
-  const so2Query = `
-      SELECT time, location, so2_mean, status
-      FROM so2_minutales 
-      WHERE location = '${locationName}'
-      ORDER BY time DESC 
-      LIMIT 1;
-    `;
-
-  // Query para PM10
-  const pm10Query = `
-      SELECT time, location, pm10_mean, status
-      FROM pm10_minutales 
-      WHERE location = '${locationName}'
-      ORDER BY time DESC 
-      LIMIT 1;
-    `;
-
-  // Query para PM2.5
-  const pm25Query = `
-      SELECT time, location, pm25_mean, status
-      FROM pm25_minutales 
-      WHERE location = '${locationName}'
-      ORDER BY time DESC 
-      LIMIT 1;
-    `;
-
-  // Query para Meteo
-  const meteoQuery = `
-      SELECT time, location, dv_mean, hr_in_mean, hr_mean, 
-             lluvia_mean, temp_mean, temp_in_mean, vv_mean, pa_mean, rs_mean, uv_mean
-      FROM meteo_minutales 
-      WHERE location = '${locationName}'
-      ORDER BY time DESC 
-      LIMIT 1;
-    `;
-
-  try {
-    // Ejecutar todas las queries en paralelo y manejar fallos individuales
-    const results = await Promise.allSettled([
-      getFirstRow<CoRow>(
-        influx.query(coQuery, database) as AsyncIterable<CoRow>,
-      ),
-      getFirstRow<NoxRow>(
-        influx.query(noxQuery, database) as AsyncIterable<NoxRow>,
-      ),
-      getFirstRow<O3Row>(
-        influx.query(o3Query, database) as AsyncIterable<O3Row>,
-      ),
-      getFirstRow<So2Row>(
-        influx.query(so2Query, database) as AsyncIterable<So2Row>,
-      ),
-      getFirstRow<Pm10Row>(
-        influx.query(pm10Query, database) as AsyncIterable<Pm10Row>,
-      ),
-      getFirstRow<Pm25Row>(
-        influx.query(pm25Query, database) as AsyncIterable<Pm25Row>,
-      ),
-      getFirstRow<MeteoRow>(
-        influx.query(meteoQuery, database) as AsyncIterable<MeteoRow>,
-      ),
-    ]);
-
-    const [coRes, noxRes, o3Res, so2Res, pm10Res, pm25Res, meteoRes] = results;
-
-    const coRow = coRes.status === "fulfilled" ? coRes.value : null;
-    if (coRes.status === "rejected") {
-      console.error(`CO query failed for ${locationName}:`, coRes.reason);
-    }
-
-    const noxRow = noxRes.status === "fulfilled" ? noxRes.value : null;
-    if (noxRes.status === "rejected") {
-      console.error(`NOx query failed for ${locationName}:`, noxRes.reason);
-    }
-
-    const o3Row = o3Res.status === "fulfilled" ? o3Res.value : null;
-    if (o3Res.status === "rejected") {
-      console.error(`O3 query failed for ${locationName}:`, o3Res.reason);
-    }
-
-    const so2Row = so2Res.status === "fulfilled" ? so2Res.value : null;
-    if (so2Res.status === "rejected") {
-      console.error(`SO2 query failed for ${locationName}:`, so2Res.reason);
-    }
-
-    const pm10Row = pm10Res.status === "fulfilled" ? pm10Res.value : null;
-    if (pm10Res.status === "rejected") {
-      console.error(`PM10 query failed for ${locationName}:`, pm10Res.reason);
-    }
-
-    const pm25Row = pm25Res.status === "fulfilled" ? pm25Res.value : null;
-    if (pm25Res.status === "rejected") {
-      console.error(`PM2.5 query failed for ${locationName}:`, pm25Res.reason);
-    }
-
-    const meteoRow = meteoRes.status === "fulfilled" ? meteoRes.value : null;
-    if (meteoRes.status === "rejected") {
-      console.error(`Meteo query failed for ${locationName}:`, meteoRes.reason);
-    }
-
-    // Combinar los resultados
-    const combinedData = {
-      location: locationName,
-      timestamps: {
-        co: coRow?.time ?? null,
-        nox: noxRow?.time ?? null,
-        o3: o3Row?.time ?? null,
-        so2: so2Row?.time ?? null,
-        pm10: pm10Row?.time ?? null,
-        pm25: pm25Row?.time ?? null,
-        meteo: meteoRow?.time ?? null,
-      },
-      latest_time: getLatestTimestamp([
-        coRow?.time,
-        noxRow?.time,
-        o3Row?.time,
-        so2Row?.time,
-        pm10Row?.time,
-        pm25Row?.time,
-        meteoRow?.time,
-      ]),
-      // CO data
-      co_mean: coRow?.co_mean ?? null,
-      co_mean_status: coRow?.status ?? null,
-      // NOx data
-      no_mean: noxRow?.no_mean ?? null,
-      no2_mean: noxRow?.no2_mean ?? null,
-      nox_mean: noxRow?.nox_mean ?? null,
-      nox_mean_status: noxRow?.status ?? null,
-      // O3 data
-      o3_mean: o3Row?.o3_mean ?? null,
-      o3_mean_status: o3Row?.status ?? null,
-      // SO2 data
-      so2_mean: so2Row?.so2_mean ?? null,
-      so2_mean_status: so2Row?.status ?? null,
-      // PM10 data
-      pm10_mean: pm10Row?.pm10_mean ?? null,
-      pm10_mean_status: pm10Row?.status ?? null,
-      // PM2.5 data
-      pm25_mean: pm25Row?.pm25_mean ?? null,
-      pm25_mean_status: pm25Row?.status ?? null,
-      // Meteo data
-      dv_mean: meteoRow?.dv_mean ?? null,
-      hr_in_mean: meteoRow?.hr_in_mean ?? null,
-      hr_mean: meteoRow?.hr_mean ?? null,
-      lluvia_mean: meteoRow?.lluvia_mean ?? null,
-      temp_mean: meteoRow?.temp_mean ?? null,
-      temp_in_mean: meteoRow?.temp_in_mean ?? null,
-      vv_mean: meteoRow?.vv_mean ?? null,
-      pa_mean: meteoRow?.pa_mean ?? null,
-      rs_mean: meteoRow?.rs_mean ?? null,
-      uv_mean: meteoRow?.uv_mean ?? null,
-    };
-
-    return FullLocationDataSchema.parse(combinedData);
-  } catch (error) {
-    console.error(`Error fetching data for location ${locationName}:`, error);
-    throw error;
-  }
+  return FullLocationDataSchema.parse({
+    location,
+    timestamps: Object.fromEntries(MEASUREMENTS.map((m) => [m, time(m)])),
+    latest_time: latest(MEASUREMENTS.map(time)),
+    co_mean: v("co", "co"),
+    co_mean_status: status("co"),
+    no_mean: v("nox", "no"),
+    no2_mean: v("nox", "no2"),
+    nox_mean: v("nox", "nox"),
+    nox_mean_status: status("nox"),
+    o3_mean: v("o3", "o3"),
+    o3_mean_status: status("o3"),
+    so2_mean: v("so2", "so2"),
+    so2_mean_status: status("so2"),
+    pm10_mean: v("pm10", "pm10"),
+    pm10_mean_status: status("pm10"),
+    pm25_mean: v("pm25", "pm25"),
+    pm25_mean_status: status("pm25"),
+    dv_mean: v("meteo", "dv"),
+    hr_in_mean: v("meteo", "hr_in"),
+    hr_mean: v("meteo", "hr"),
+    lluvia_mean: v("meteo", "lluvia"),
+    temp_mean: v("meteo", "temp"),
+    temp_in_mean: v("meteo", "temp_in"),
+    vv_mean: v("meteo", "vv"),
+    pa_mean: v("meteo", "pa"),
+    rs_mean: v("meteo", "rs"),
+    uv_mean: v("meteo", "uv"),
+  });
 }

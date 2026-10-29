@@ -1,0 +1,13 @@
+# Lo que no entra al contexto de build. Además de achicarlo, evita que un .env
+# local con credenciales reales termine copiado en una capa de la imagen.
+.git
+.github
+.next
+.vercel
+node_modules
+coverage
+tests
+.env*
+!.env.example
+*.pem
+*.md

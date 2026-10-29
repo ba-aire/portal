@@ -40,7 +40,7 @@ export async function isRateLimited(
   ];
 
   // Una sola query para ambos discriminadores: el login está en el camino
-  // crítico y no justifica dos round-trips a Neon.
+  // crítico y no justifica dos round-trips a la base.
   const rows = await db
     .select({ kind: loginAttemptTable.kind, total: count() })
     .from(loginAttemptTable)

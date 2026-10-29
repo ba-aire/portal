@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ZodError } from "zod";
 
-// Mock de la capa repository: evita importar @/db/influx y pegarle a InfluxDB.
+// Mock de la capa repository: evita importar @/db/airedb y pegarle a la base.
 vi.mock("@/lib/datos/repository", () => ({
   fetchDatosPorContaminante: vi.fn(),
 }));
@@ -55,6 +55,7 @@ describe("DatosService.getDatosPorContaminante", () => {
         startDate: validRawParams.startDate,
         endDate: validRawParams.endDate,
         interval: "hour",
+        procesadoHasta: null,
       },
     });
 
@@ -84,6 +85,7 @@ describe("DatosService.getDatosPorContaminante", () => {
         startDate: "2025-07-29T00:00:00Z",
         endDate: "2025-07-30T00:00:00Z",
         interval: "hour",
+        procesadoHasta: null,
       },
     });
 
@@ -102,7 +104,7 @@ describe("DatosService.getDatosPorContaminante", () => {
   // El servicio propaga el ZodError con su tipo intacto en vez de reempaquetarlo
   // en un Error genérico: es lo que permite a la route devolver 400 con detalle
   // de validación y 500 genérico para todo lo demás, sin filtrar el mensaje del
-  // driver de InfluxDB al cliente.
+  // driver de la base al cliente.
   it("propaga un ZodError y no llama al repo si los params son inválidos", async () => {
     await expect(
       datosService.getDatosPorContaminante({
@@ -128,7 +130,8 @@ describe("DatosService.getDatosPorContaminante", () => {
     expect(datosService.getAvailableIntervals()).toEqual([
       "minute",
       "hour",
-      "day",
+      "mov8h",
+      "mov24h",
     ]);
     expect(datosService.getAvailableLocations()).toEqual([
       "centenario",

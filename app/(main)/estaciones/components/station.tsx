@@ -3,6 +3,7 @@
 import { AlertCircle, Loader2, WifiOff } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import useSSE from "@/hooks/useSSE";
+import { withBasePath } from "@/lib/base-path";
 import type { FullLocationData } from "@/lib/location/models";
 import { cn } from "@/lib/utils";
 import DataGrid from "./data-grid";
@@ -29,7 +30,9 @@ const getLocationBgColor = (location: string) => {
 };
 
 export default function Station({ location }: { location: string }) {
-  const { data, error, status } = useSSE<FullLocationData>(`/api/${location}`);
+  const { data, error, status } = useSSE<FullLocationData>(
+    withBasePath(`/api/${location}`),
+  );
   const bgColor = getLocationBgColor(location);
   return (
     <div className="w-full h-full p-6 flex flex-col max-w-7xl mx-auto">

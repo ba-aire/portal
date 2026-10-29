@@ -1,54 +1,36 @@
 /**
- * @file Configuración de las tablas de descargas para la generación de archivos CSV y Excel.
- * @description Las Metricas se van a descargar en excel en el orden que las pongas en cada metric dentro de TABLE_CONFIG.
+ * @file Las columnas de las descargas.
+ * @description Cada grupo es un equipo de la cabina (una measurement de bronze):
+ * sus parámetros van juntos en el Excel, con un status y un conteo de minutos
+ * válidos por grupo. EL ORDEN DE ESTE ARCHIVO ES EL ORDEN DE LAS COLUMNAS, y la
+ * hoja "validados" se pega en la planilla general: cambiarlo rompe ese pegado.
  * @author Ezequiel Maranda
- * @version 1.0.0
+ * @version 2.0.0
  * @since 2026-03-11
  */
 
-// Table configurations with their respective metrics
 export const TABLE_CONFIG = {
-  nox: {
-    table: "nox_minutales",
-    metrics: ["no_mean", "no2_mean", "nox_mean"],
-  },
-  co: {
-    table: "co_minutales",
-    metrics: ["co_mean"],
-  },
-  o3: {
-    table: "o3_minutales",
-    metrics: ["o3_mean"],
-  },
-  pm10: {
-    table: "pm10_minutales",
-    metrics: ["pm10_mean"],
-  },
-  pm25: {
-    table: "pm25_minutales",
-    metrics: ["pm25_mean"],
-  },
-  so2: {
-    table: "so2_minutales",
-    metrics: ["so2_mean"],
-  },
-  h2s: {
-    table: "h2s_minutales",
-    metrics: ["h2s_mean"],
-  },
+  nox: { metrics: ["no", "no2", "nox"] },
+  co: { metrics: ["co"] },
+  o3: { metrics: ["o3"] },
+  pm10: { metrics: ["pm10"] },
+  pm25: { metrics: ["pm25"] },
+  so2: { metrics: ["so2"] },
+  // No hay sensor de H2S en la red ni parámetro en dim.parameters: la columna
+  // existe solo para que validados conserve el formato de la planilla general,
+  // y sale siempre "s/d".
+  h2s: { metrics: ["h2s"] },
   meteo: {
-    table: "meteo_minutales",
-    metrics: [
-      "dv_mean",
-      "vv_mean",
-      "temp_mean",
-      "hr_mean",
-      "pa_mean",
-      "uv_mean",
-      "lluvia_mean",
-      "rs_mean",
-    ],
+    metrics: ["dv", "vv", "temp", "hr", "pa", "uv", "lluvia", "rs"],
   },
 } as const;
 
 export type TableConfig = typeof TABLE_CONFIG;
+
+/**
+ * Columnas derivadas que van solo en crudos (y en el CSV), pegadas a su
+ * métrica. Validados no las lleva: su formato es el de la planilla general.
+ */
+export const DERIVED_COLUMNS: Record<string, string> = {
+  dv: "dv_rumbo",
+};

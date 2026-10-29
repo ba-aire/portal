@@ -35,6 +35,7 @@ const usuarioExistente = {
   // hash real de "password123!" con cost 10
   password: bcrypt.hashSync("password123!", 10),
   role: "VIEWER",
+  isActive: true,
 };
 
 describe("loginUser", () => {
@@ -70,6 +71,51 @@ describe("loginUser", () => {
       "juan@example.com",
       "203.0.113.7",
     );
+  });
+
+  describe("usuario deshabilitado (is_active = false)", () => {
+    const deshabilitado = { ...usuarioExistente, isActive: false };
+
+    it("rechaza con la contraseña correcta, sin crear sesión", async () => {
+      vi.mocked(getUserByEmail).mockResolvedValue(deshabilitado as never);
+      const { createSession } = await import("@/lib/auth-session");
+
+      const result = await loginUser(
+        { email: "juan@example.com", password: "password123!" } as never,
+        "203.0.113.7",
+      );
+
+      expect(result.success).toBe(false);
+      expect(createSession).not.toHaveBeenCalled();
+      expect(clearAttempts).not.toHaveBeenCalled();
+    });
+
+    it("responde lo mismo que una contraseña incorrecta, para no revelar que la cuenta existe", async () => {
+      vi.mocked(getUserByEmail).mockResolvedValue(deshabilitado as never);
+      const conClaveCorrecta = await loginUser(
+        { email: "juan@example.com", password: "password123!" } as never,
+        null,
+      );
+
+      vi.mocked(getUserByEmail).mockResolvedValue(usuarioExistente as never);
+      const conClaveIncorrecta = await loginUser(
+        { email: "juan@example.com", password: "incorrecta-999!" } as never,
+        null,
+      );
+
+      expect(conClaveCorrecta.message).toBe(conClaveIncorrecta.message);
+    });
+
+    it("no suma intento fallido: la contraseña era correcta", async () => {
+      vi.mocked(getUserByEmail).mockResolvedValue(deshabilitado as never);
+
+      await loginUser(
+        { email: "juan@example.com", password: "password123!" } as never,
+        "203.0.113.7",
+      );
+
+      expect(recordFailedAttempt).not.toHaveBeenCalled();
+    });
   });
 
   it("registra el intento fallido también cuando el usuario no existe", async () => {

@@ -24,7 +24,8 @@ export const ContaminantEnum = z.enum([
 ]);
 export type Contaminant = z.infer<typeof ContaminantEnum>;
 
-export const IntervalEnum = z.enum(["minute", "hour", "day"]);
+// mov8h y mov24h: media movil de 8 y 24 horas, de gold (una fila por hora).
+export const IntervalEnum = z.enum(["minute", "hour", "mov8h", "mov24h"]);
 export type Interval = z.infer<typeof IntervalEnum>;
 
 export const LocationEnum = z.enum([
@@ -41,8 +42,8 @@ export type Location = z.infer<typeof LocationEnum>;
 
 export const QueryParamsSchema = z.object({
   contaminant: ContaminantEnum.default("co"),
-  // LocationEnum, no z.string(): el repositorio interpola cada valor en SQL crudo,
-  // dos veces (dentro del WHERE y como alias de columna entre comillas dobles).
+  // LocationEnum, no z.string(): el repositorio las pasa como parametro, pero una
+  // estacion que no existe no tiene por que llegar a la base.
   locations: z
     .string()
     .transform((val) => val.split(",").map((loc) => loc.trim()))
@@ -64,13 +65,15 @@ export const QueryParamsSchema = z.object({
 });
 export type QueryParams = z.infer<typeof QueryParamsSchema>;
 
-// Tope de ventana por intervalo, en días. Las tablas son minutales: sin límite,
-// un solo request puede pedir años de datos y agotar la cuota de InfluxDB.
+// Tope de ventana por intervalo, en días. Sin límite, un solo request puede pedir
+// años de minutos y comerse la memoria del portal y la del Postgres de la VM.
 // El techo acompaña la granularidad — a menor resolución, más rango razonable.
 export const MAX_RANGE_DAYS: Record<Interval, number> = {
-  minute: 31,
+  minute: 1, // un día: la franja se elige en el picker (lib/rango-minutal.ts)
   hour: 366,
-  day: 1830, // ~5 años
+  // Una fila por hora, igual que la horaria.
+  mov8h: 366,
+  mov24h: 366,
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -94,7 +97,7 @@ export const BoundedQueryParamsSchema = QueryParamsSchema.superRefine(
     if (end - start > maxDays * DAY_MS) {
       ctx.addIssue({
         code: "custom",
-        message: `El rango máximo para el intervalo "${p.interval}" es de ${maxDays} días.`,
+        message: `El rango máximo para el intervalo "${p.interval}" es de ${maxDays} ${maxDays === 1 ? "día" : "días"}.`,
         path: ["endDate"],
       });
     }
@@ -109,7 +112,8 @@ export const DataPointSchema = z
   .object({
     time: z.string(),
   })
-  .catchall(z.union([z.number(), z.string(), StatusEnum]));
+  // Valor (number), status del minuto (string) o null (sin dato).
+  .catchall(z.union([z.number(), z.string(), z.null()]));
 export type DataPoint = z.infer<typeof DataPointSchema>;
 
 export const QueryResultSchema = z.object({
@@ -121,6 +125,8 @@ export const QueryResultSchema = z.object({
     endDate: z.string(),
     interval: IntervalEnum,
     count: z.number(),
+    // Hasta donde llego la horaria de silver (los jobs corren cada hora).
+    procesadoHasta: z.string().nullable(),
   }),
 });
 export type QueryResult = z.infer<typeof QueryResultSchema>;
@@ -172,8 +178,14 @@ export const filtrosSchema = z
         message: 'Seleccioná una fecha "hasta" válida.',
       }),
     ),
+    startHour: z.number().int().min(0).max(23).optional(),
+    endHour: z.number().int().min(1).max(24).optional(),
   })
   .refine((d) => d.startDate.getTime() <= d.endDate.getTime(), {
     message: 'La fecha "desde" debe ser anterior o igual a la fecha "hasta".',
     path: ["startDate"],
+  })
+  .refine((d) => (d.endHour ?? 24) > (d.startHour ?? 0), {
+    message: 'La hora "hasta" debe ser posterior a la hora "desde".',
+    path: ["endHour"],
   });
