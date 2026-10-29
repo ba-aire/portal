@@ -33,7 +33,6 @@ updates:
         update-types: ["major"]
       # Los security updates NO se agrupan: cada vulnerabilidad merece su propio
       # PR para poder mergearla sola y rápido, sin arrastrar bumps de rutina.
-
   # npm de la rama `vercel` (app de desarrollo congelada, expuesta en internet).
   #
   # Dependabot abre los PRs de SEGURIDAD solo contra la rama por defecto: con
@@ -56,7 +55,8 @@ updates:
       prefix: "chore(deps-vercel)"
     ignore:
       - dependency-name: "*"
-        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+        update-types:
+          ["version-update:semver-major", "version-update:semver-minor"]
     groups:
       parches:
         patterns: ["*"]
