@@ -1,21 +1,12 @@
 "use client";
 import { AlertCircle, FileWarning, Loader2 } from "lucide-react";
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type { FiltrosType } from "@/app/(main)/datos/contaminante/components/filters";
 import SonnerToaster from "@/components/sonner-toaster";
 import useFetchDatos from "@/hooks/useFetchDatos";
-import { withBasePath } from "@/lib/base-path";
-import {
-  FUENTES_INICIAL,
-  type Fuentes,
-  filtrarSeries,
-  STATUS_MINUTO,
-} from "@/lib/datos/series";
-import type { Periodo } from "@/lib/periodo";
 import Chart from "./components/chart";
 import Filtros from "./components/filters";
-import SeriesControls from "./components/series-controls";
 import Table from "./components/table";
 
 export default function CrudosPage() {
@@ -26,20 +17,7 @@ export default function CrudosPage() {
     endDate: undefined,
     locations: "",
   });
-  const { data, error, isLoading, procesadoHasta, fetchDatos } =
-    useFetchDatos();
-  // Que mostrar del resultado: por defecto, todo. Cambiarlo no vuelve a consultar.
-  const [statuses, setStatuses] = useState<Set<string>>(
-    () => new Set(STATUS_MINUTO.map((s) => s.value)),
-  );
-  const [fuentes, setFuentes] = useState<Fuentes>(FUENTES_INICIAL);
-  const visibles = useMemo(
-    () =>
-      Array.isArray(data)
-        ? filtrarSeries(data, filters.interval, { statuses, fuentes })
-        : data,
-    [data, filters.interval, statuses, fuentes],
-  );
+  const { data, error, isLoading, fetchDatos } = useFetchDatos();
 
   const handleFetch = (newFilters: FiltrosType) => {
     setFilters(newFilters);
@@ -77,16 +55,8 @@ export default function CrudosPage() {
       )}
       {Array.isArray(data) && data.length > 0 && !isLoading && !error && (
         <>
-          <SeriesControls
-            interval={filters.interval}
-            statuses={statuses}
-            onStatusesChange={setStatuses}
-            fuentes={fuentes}
-            onFuentesChange={setFuentes}
-            procesadoHasta={procesadoHasta}
-          />
-          <Chart data={visibles ?? []} />
-          <Table data={visibles ?? []} interval={filters.interval as Periodo} />
+          <Chart data={data} />
+          <Table data={data} />
         </>
       )}
       {Array.isArray(data) && data.length === 0 && !isLoading && !error && (
@@ -102,7 +72,7 @@ export default function CrudosPage() {
       {data === undefined && !isLoading && !error && (
         <div className="w-full h-full flex flex-col items-center justify-center text-center">
           <Image
-            src={withBasePath("/data-search.png")}
+            src="/data-search.png"
             alt="No hay datos"
             width={400}
             height={400}

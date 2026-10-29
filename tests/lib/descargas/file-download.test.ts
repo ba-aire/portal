@@ -70,14 +70,10 @@ function hojaDe(workbook: ExcelJS.Workbook, nombre: string): ExcelJS.Worksheet {
   return hoja;
 }
 
-/**
- * Número de la fila de encabezados: la que empieza con la columna de tiempo
- * ("Fecha y Hora" en la horaria, "Fecha y hora (inicio del minuto)" en la minutal).
- */
+/** Número de la fila de encabezados: la que empieza con "Fecha y Hora". */
 function filaEncabezados(hoja: ExcelJS.Worksheet): number {
   for (let i = 1; i <= hoja.rowCount; i++) {
-    const valor = hoja.getRow(i).getCell(1).value;
-    if (typeof valor === "string" && /^Fecha y hora/i.test(valor)) return i;
+    if (hoja.getRow(i).getCell(1).value === "Fecha y Hora") return i;
   }
   throw new Error("La hoja no tiene fila de encabezados");
 }
@@ -212,24 +208,6 @@ describe("downloadAsCSV", () => {
     expect(encabezado).toContain("No2");
   });
 
-  // airedb rotula la hora por su inicio: la fila de las 11:00 (14:00 UTC) son
-  // los minutos 11:00 a 11:59, y el CSV lo dice igual que el Excel.
-  it("rotula la fila horaria con el rango que cubre", async () => {
-    downloadAsCSV([{ time: "2026-01-15T14:00:00Z", co: 1 }], "x.csv", "hour");
-
-    expect((await filasCSV())[1]).toMatch(/^"15\/01\/2026, 11:00 a 12:00 hs",/);
-  });
-
-  it("rotula la fila minutal con el inicio del minuto", async () => {
-    downloadAsCSV([{ time: FILA.time, co: 1 }], "x.csv", "minute");
-
-    const [encabezado, fila] = await filasCSV();
-    expect(encabezado.startsWith("Fecha y hora (inicio del minuto),")).toBe(
-      true,
-    );
-    expect(fila).toMatch(/^"15\/01\/2026, 11:30",/);
-  });
-
   // Las columnas salen de TABLE_CONFIG, no de las claves presentes en los
   // datos: así dos descargas de estaciones distintas tienen el mismo formato y
   // se pueden apilar sin realinear nada.
@@ -359,45 +337,6 @@ describe("downloadAsExcel", () => {
     expect(workbook.worksheets.map((h) => h.name)).toEqual([
       "crudos",
       "validados",
-    ]);
-  });
-
-  // La validación es de la hora (gold): un minuto no tiene otro valor que el
-  // crudo, así que la descarga minutal es una sola hoja.
-  it("genera solo la hoja crudos en la descarga minutal", async () => {
-    await downloadAsExcel([FILA], "x.xlsx", "minute");
-
-    const workbook = await excelDescargado();
-    expect(workbook.worksheets.map((h) => h.name)).toEqual(["crudos"]);
-  });
-
-  // validados se pega en la planilla general: sus columnas son fijas. El rumbo
-  // va solo en crudos, pegado a la dirección.
-  it("pone Dv_rumbo al lado de Dv en crudos y nunca en validados", async () => {
-    await downloadAsExcel([FILA], "x.xlsx", "hour");
-    const workbook = await excelDescargado();
-
-    const crudos = encabezadosDe(hojaDe(workbook, "crudos"));
-    expect(crudos[crudos.indexOf("Dv") + 1]).toBe("Dv_rumbo");
-    expect(encabezadosDe(hojaDe(workbook, "validados"))).toEqual([
-      "Fecha y Hora",
-      "No",
-      "No2",
-      "Nox",
-      "Co",
-      "O3",
-      "Pm10",
-      "Pm25",
-      "So2",
-      "H2s",
-      "Dv",
-      "Vv",
-      "Temp",
-      "Hr",
-      "Pa",
-      "Uv",
-      "Lluvia",
-      "Rs",
     ]);
   });
 

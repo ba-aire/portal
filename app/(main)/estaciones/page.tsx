@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 
 export const metadata: Metadata = {
-  title: "BA Aire - Estaciones",
+  title: "SIRCA - Estaciones",
   description: "Estaciones de monitoreo atmosférico",
 };
 

@@ -13,7 +13,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import useFetchDescargas from "@/hooks/useFetchDescargas";
-import { withBasePath } from "@/lib/base-path";
 import {
   downloadAsCSV,
   downloadAsExcel,
@@ -118,7 +117,7 @@ export default function DescargasPage() {
               </Select>
             </div>
           </div>
-          <Table data={data} interval={filters.integration} />
+          <Table data={data} />
         </>
       )}
       {Array.isArray(data) && data.length === 0 && !isLoading && !error && (
@@ -134,7 +133,7 @@ export default function DescargasPage() {
       {data === undefined && !isLoading && !error && (
         <div className="w-full flex flex-col items-center justify-center text-center">
           <Image
-            src={withBasePath("/data_download.png")}
+            src="/data_download.png"
             alt="No hay datos"
             width={450}
             height={450}

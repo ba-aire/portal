@@ -1,6 +1,5 @@
-import { type InferInsertModel, type InferSelectModel, sql } from "drizzle-orm";
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import {
-  check,
   index,
   integer,
   pgTable,
@@ -15,7 +14,8 @@ import {
  * propio heap: un contador local se multiplicaría por la cantidad de instancias
  * y se reiniciaría con cada reciclado, así que no limitaría nada.
  *
- * Son filas efímeras: se borran al cerrarse la ventana (ver lib/auth/rate-limit.ts).
+ * Deliberadamente NO usa commonColumns: son filas efímeras que se borran al
+ * cerrarse la ventana, no entidades de negocio con borrado lógico.
  */
 export const loginAttemptTable = pgTable(
   "login_attempt",
@@ -26,9 +26,7 @@ export const loginAttemptTable = pgTable(
     // El discriminador evita que una IP con forma de email colisione con un email.
     kind: varchar({ length: 10 }).notNull(), // "email" | "ip"
     identifier: varchar({ length: 255 }).notNull(),
-    attemptedAt: timestamp("attempted_at", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
+    attemptedAt: timestamp("attempted_at").defaultNow().notNull(),
   },
   (table) => [
     // El conteo siempre filtra por (kind, identifier) y ventana de tiempo.
@@ -37,7 +35,6 @@ export const loginAttemptTable = pgTable(
       table.identifier,
       table.attemptedAt,
     ),
-    check("login_attempt_kind_check", sql`${table.kind} IN ('email', 'ip')`),
   ],
 );
 

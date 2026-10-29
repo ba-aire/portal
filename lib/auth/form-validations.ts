@@ -1,15 +1,10 @@
 import { z } from "zod";
-import { ROLES } from "./roles";
 
 export const LoginFormSchema = z.object({
   email: z
     .string()
-    // trim y minúsculas ANTES de .email(): zod aplica la cadena en orden, y con
-    // .trim() al final un email pegado con un espacio se rechazaba como inválido.
-    // Se guarda y se busca en minúsculas (ver db/schema/user.ts).
-    .trim()
-    .toLowerCase()
-    .email({ message: "Por favor, introduce un correo válido." }),
+    .email({ message: "Por favor, introduce un correo válido." })
+    .trim(),
   password: z
     .string()
     .min(8, { message: "Debe tener al menos 8 caracteres." })
@@ -32,12 +27,8 @@ export const RegisterFormSchema = z.object({
     .trim(),
   email: z
     .string()
-    // trim y minúsculas ANTES de .email(): zod aplica la cadena en orden, y con
-    // .trim() al final un email pegado con un espacio se rechazaba como inválido.
-    // Se guarda y se busca en minúsculas (ver db/schema/user.ts).
-    .trim()
-    .toLowerCase()
-    .email({ message: "Por favor, introduce un correo válido." }),
+    .email({ message: "Por favor, introduce un correo válido." })
+    .trim(),
   password: z
     .string()
     .min(8, { message: "Debe tener al menos 8 caracteres." })
@@ -47,7 +38,7 @@ export const RegisterFormSchema = z.object({
       message: "Debe contener al menos un carácter especial.",
     })
     .trim(),
-  role: z.enum(ROLES, {
+  role: z.enum(["ADMIN", "EDITOR", "VIEWER"], {
     message: "Por favor, selecciona un rol.",
   }),
 });

@@ -6,7 +6,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import "./globals.css";
 
 export const metadata = {
-  title: "BA Aire - Inicio",
+  title: "SIRCA - Inicio",
   description: "Sistema de Gestion de la Red de Calidad del Aire.",
 };
 
