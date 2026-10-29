@@ -73,7 +73,7 @@ API routes validate query params with Zod. Services call repositories; request v
 - **Tailwind CSS v4** for styling
 - **Chart.js / Recharts** for pollutant data charts
 - **Mapbox GL / MapLibre GL** for station maps
-- **TanStack Table** for data tables
+- Data tables (`/datos`, `/descargas`) are plain `<table>` elements, no table library
 - **Sonner** for toast notifications
 - **Lucide React** for icons
 
