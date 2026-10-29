@@ -1,13 +1,8 @@
-import { ordenarSeries, seriesDe } from "@/lib/datos/series";
-import { encabezadoPeriodo, formatPeriodo, type Periodo } from "@/lib/periodo";
-
 interface TableProps {
-  data: Record<string, string | number | null>[];
-  /** Período de cada fila: define el rótulo de la columna de tiempo. */
-  interval: Periodo;
+  data: Record<string, string | number>[];
 }
 
-export default function Table({ data, interval }: TableProps) {
+export default function Table({ data }: TableProps) {
   if (!Array.isArray(data) || data.length === 0) {
     return (
       <div className="overflow-x-auto p-2">
@@ -18,7 +13,14 @@ export default function Table({ data, interval }: TableProps) {
 
   // Recorro todas las filas para cubrir casos con merge (p.ej. pm10 + pm25)
   // donde data[0] puede no contener todas las columnas.
-  const locations = ordenarSeries(seriesDe(data));
+  const locations = Array.from(
+    data.reduce((set, row) => {
+      Object.keys(row).forEach((k) => {
+        if (k !== "time") set.add(k);
+      });
+      return set;
+    }, new Set<string>()),
+  );
 
   const displayName = (location: string) => {
     let label = location;
@@ -35,7 +37,7 @@ export default function Table({ data, interval }: TableProps) {
       <table className="min-w-full border text-sm">
         <thead>
           <tr className="bg-gray-100">
-            <th className="border px-2 py-1">{encabezadoPeriodo(interval)}</th>
+            <th className="border px-2 py-1">Fecha y Hora</th>
             {locations.map((location) => (
               <th key={location} className="border px-2 py-1 capitalize">
                 {displayName(location)}
@@ -47,8 +49,15 @@ export default function Table({ data, interval }: TableProps) {
           {data.map((row) => {
             return (
               <tr key={String(row.time)}>
-                <td className="border px-2 py-1 text-center whitespace-nowrap">
-                  {formatPeriodo(String(row.time), interval)}
+                <td className="border px-2 py-1 text-center">
+                  {new Intl.DateTimeFormat("es-AR", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    timeZone: "America/Argentina/Buenos_Aires",
+                  }).format(new Date(row.time))}
                 </td>
                 {locations.map((location) => (
                   <td key={location} className="border px-2 py-1 text-center">

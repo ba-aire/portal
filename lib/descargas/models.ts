@@ -1,7 +1,7 @@
 /**
  * @file Definiciones de tipos y esquemas de validación para el módulo de descargas.
  * @description Utiliza Zod para garantizar la integridad de los datos de entrada de filtros,
- * parámetros de consulta a airedb y la estructura de los resultados.
+ * parámetros de consulta a InfluxDB y la estructura de los resultados.
  * @author Ezequiel Maranda
  * @version 1.1.0
  * @since 2026-03-11
@@ -69,7 +69,7 @@ export type QueryParams = z.infer<typeof QueryParamsSchema>;
 // lib/datos/models.ts: las tablas son minutales y sin límite un solo request
 // puede pedir años de datos.
 export const MAX_RANGE_DAYS: Record<Integration, number> = {
-  minute: 1, // un día: la franja se elige en el picker (lib/rango-minutal.ts)
+  minute: 31,
   hour: 366,
 };
 
@@ -94,7 +94,7 @@ export const BoundedQueryParamsSchema = QueryParamsSchema.superRefine(
     if (end - start > maxDays * DAY_MS) {
       ctx.addIssue({
         code: "custom",
-        message: `El rango máximo para la integración "${p.integration}" es de ${maxDays} ${maxDays === 1 ? "día" : "días"}.`,
+        message: `El rango máximo para la integración "${p.integration}" es de ${maxDays} días.`,
         path: ["endDate"],
       });
     }
@@ -117,7 +117,7 @@ const bigIntToNumberOrNull = z.preprocess((val) => {
 }, z.union([z.number(), z.string(), StatusEnum, z.null()]).nullable());
 
 // Helper to convert time to string (handles number, Date, string)
-// El repositorio ya entrega la fecha en ISO; esto cubre number, bigint y Date por las dudas.
+// Nota: El cliente @influxdata/influxdb3-client ya convierte nanosegundos a milisegundos
 const timeToString = z.preprocess((val) => {
   if (val === null || val === undefined) {
     return "";
@@ -197,14 +197,8 @@ export const filtrosSchema = z
         message: 'Seleccioná una fecha "hasta" válida.',
       }),
     ),
-    startHour: z.number().int().min(0).max(23).optional(),
-    endHour: z.number().int().min(1).max(24).optional(),
   })
   .refine((d) => d.startDate.getTime() <= d.endDate.getTime(), {
     message: 'La fecha "desde" debe ser anterior o igual a la fecha "hasta".',
     path: ["startDate"],
-  })
-  .refine((d) => (d.endHour ?? 24) > (d.startHour ?? 0), {
-    message: 'La hora "hasta" debe ser posterior a la hora "desde".',
-    path: ["endHour"],
   });

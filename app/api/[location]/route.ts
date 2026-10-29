@@ -46,9 +46,7 @@ export async function GET(
 
       await sendData();
 
-      // Cada 5 s: es tiempo real desde bronze, donde los equipos escriben cada
-      // 5-30 s (lib/location/repository.ts).
-      const interval = setInterval(sendData, 5000);
+      const interval = setInterval(sendData, 60000);
 
       // Close on client abort
       request.signal.onabort = () => {

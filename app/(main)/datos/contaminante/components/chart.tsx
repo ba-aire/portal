@@ -13,17 +13,9 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import {
-  type FuenteCruda,
-  fuenteCruda,
-  ordenarSeries,
-  serieBase,
-  seriesDe,
-  seriesDeUnaFuente,
-} from "@/lib/datos/series";
 
 interface ChartProps {
-  data: Record<string, string | number | null>[];
+  data: Record<string, string | number>[];
 }
 
 // data example para CO:
@@ -58,13 +50,17 @@ export default function Chart({ data }: ChartProps) {
   // Obtengo los datos ordenados por ubicación (columnas) dinámicamente excluyendo 'time'.
   // Recorro todas las filas por si la fuente mergeó tablas con timestamps distintos
   // (p.ej. pm10 + pm25) y data[0] no tiene todas las columnas.
-  const locations = ordenarSeries(seriesDe(data));
+  const locations = Array.from(
+    data.reduce((set, row) => {
+      Object.keys(row).forEach((k) => {
+        if (k !== "time") set.add(k);
+      });
+      return set;
+    }, new Set<string>()),
+  );
   // Verifico si el contaminante seleccionado por el usuario es NOx totales
   // para mostrar grafico de area acumulativo no + no2 y nox
   const isNox = locations.some((location) => location.includes("NOx"));
-  // El apilado de NO + NO2 se arma con UNA fuente (validados, o la primera cruda
-  // que haya): apilar varias sumaria dos veces la misma concentracion.
-  const areaSeries = seriesDeUnaFuente(locations);
 
   // Colores predefinidos para cada estación
   const stationColor: Record<string, string> = {
@@ -95,22 +91,6 @@ export default function Chart({ data }: ChartProps) {
     otra: "var(--color-otra)",
   };
 
-  // Todas las fuentes de una estacion llevan su color; las crudas van con otro
-  // trazo para distinguirlas de los validados.
-  const color = (serie: string) =>
-    stationColor[serieBase(serie)] ?? "var(--color-otra)";
-
-  const TRAZO_CRUDA: Record<FuenteCruda, string> = {
-    crudo: "2 3",
-    conAlarmas: "6 3",
-    sinAlarmas: "1 4",
-  };
-  const trazo = (serie: string) => {
-    const cruda = fuenteCruda(serie);
-    if (cruda) return TRAZO_CRUDA[cruda];
-    return serie.includes("NOx") ? "4 7" : "4 0";
-  };
-
   const displayName = (location: string) => {
     let label = location;
     if (label === "catalinas" || label.startsWith("catalinas ")) {
@@ -132,7 +112,7 @@ export default function Chart({ data }: ChartProps) {
         hour: "2-digit",
         minute: "2-digit",
         timeZone: "America/Argentina/Buenos_Aires",
-      }).format(new Date(String(row.time))),
+      }).format(new Date(row.time)),
     };
 
     locations.forEach((location) => {
@@ -185,14 +165,14 @@ export default function Chart({ data }: ChartProps) {
             }}
           />
           <Legend iconType="plainline" iconSize={20} />
-          {areaSeries.map((location) =>
+          {locations.map((location) =>
             location.includes("NOx") ? (
               <Line
                 key={location}
                 type="monotone"
                 dataKey={location}
                 name={displayName(location)}
-                stroke={color(location)}
+                stroke={stationColor[location] ?? "var(--color-otra)"}
                 dot={false}
                 strokeWidth={3}
                 strokeDasharray="4 7"
@@ -204,8 +184,8 @@ export default function Chart({ data }: ChartProps) {
                 dataKey={location}
                 name={displayName(location)}
                 stackId="1"
-                stroke={color(location)}
-                fill={color(location)}
+                stroke={stationColor[location] ?? "var(--color-otra)"}
+                fill={stationColor[location] ?? "var(--color-otra)"}
               />
             ),
           )}
@@ -244,11 +224,11 @@ export default function Chart({ data }: ChartProps) {
               key={location}
               type="linear"
               dataKey={location}
-              stroke={color(location)}
+              stroke={stationColor[location] ?? "var(--color-otra)"}
               name={displayName(location)}
               dot={false}
               strokeWidth={location.includes("NOx") ? 3 : 2}
-              strokeDasharray={trazo(location)}
+              strokeDasharray={location.includes("NOx") ? "4 7" : "4 0"}
             />
           ))}
         </LineChart>

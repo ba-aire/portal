@@ -1,12 +1,9 @@
 // freshnessService.ts
-import { differenceInSeconds } from "date-fns";
+import { differenceInMinutes } from "date-fns";
 import type { FullLocationData } from "./models"; // el tipo que devuelve tu repo
 
-// Una lectura de bronze más vieja que esto es una cabina que dejó de transmitir.
-// Los equipos mandan cada 5-30 s (la estación meteorológica es la más lenta, a
-// 30 s) y Telegraf escribe cada 10 s: 2 minutos son cuatro lecturas de la más
-// lenta perdidas, sin dar alarmas falsas por un flush demorado.
-const FRESHNESS_THRESHOLD_SECONDS = 120;
+// Umbral configurable (ej: 2 minutos)
+const FRESHNESS_THRESHOLD_MINUTES = 4;
 
 export function applyFreshnessCheck(data: FullLocationData) {
   const now = new Date();
@@ -21,9 +18,9 @@ export function applyFreshnessCheck(data: FullLocationData) {
       continue;
     }
 
-    const secondsOld = differenceInSeconds(now, new Date(ts));
+    const minutesOld = differenceInMinutes(now, new Date(ts));
 
-    if (secondsOld <= FRESHNESS_THRESHOLD_SECONDS) {
+    if (minutesOld <= FRESHNESS_THRESHOLD_MINUTES) {
       freshness[key] = "fresh";
     } else {
       freshness[key] = "stale";

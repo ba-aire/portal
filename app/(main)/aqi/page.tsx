@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import AQIMap from "./components/map";
 
 export const metadata: Metadata = {
-  title: "BA Aire - AQI",
+  title: "SIRCA - Datos AQI",
   description: "AQI",
 };
 

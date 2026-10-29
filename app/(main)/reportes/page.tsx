@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { PageUnderConstruction } from "@/components/page-under-construction";
 
 export const metadata: Metadata = {
-  title: "BA Aire - Reportes",
+  title: "SIRCA - Reportes",
   description: "Reportes de calidad del aire",
 };
 

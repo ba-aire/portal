@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
-import HourRangeSelect from "@/components/hour-range-select";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
@@ -22,7 +21,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { filtrosSchema } from "@/lib/descargas/models";
-import { HORA_DESDE_DEFECTO, HORA_HASTA_DEFECTO } from "@/lib/rango-minutal";
 
 export const promedioOptions = [
   { label: "Minutales", value: "minute" },
@@ -41,9 +39,6 @@ export interface FiltrosType {
   integration: "hour" | "minute";
   startDate: Date | undefined;
   endDate: Date | undefined;
-  // Solo minutales: franja del día elegido (desde 0-23, hasta 1-24 exclusivo).
-  startHour?: number;
-  endHour?: number;
 }
 
 interface FiltrosProps {
@@ -80,8 +75,6 @@ export default function Filtros({
     });
   };
 
-  const esMinutal = localFilters.integration === "minute";
-
   // Setter genérico de cambios locales y limpieza de errores del campo
   const handleChange = (key: string, value: unknown) => {
     setLocalFilters((prev) => ({ ...prev, [key]: value }));
@@ -90,11 +83,7 @@ export default function Filtros({
   // Valida usando Zod y devuelve un objeto con errores por campo (no muta estado)
   const validateFilters = (): Record<string, string> => {
     try {
-      // En minutales el día es uno solo: no hay "hasta" para elegir.
-      filtrosSchema.parse({
-        ...localFilters,
-        endDate: esMinutal ? localFilters.startDate : localFilters.endDate,
-      } as unknown);
+      filtrosSchema.parse(localFilters as unknown);
       return {};
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -125,25 +114,18 @@ export default function Filtros({
     }
 
     // Enviar filtros ya validados
-    const startDate =
-      typeof localFilters.startDate === "string"
-        ? new Date(localFilters.startDate)
-        : localFilters.startDate;
-    const filtersToSend: FiltrosType = {
+    const filtersToSend = {
       integration: localFilters.integration,
-      startDate,
-      // Minutales: un solo día, así que "hasta" es el mismo día.
-      endDate: esMinutal
-        ? startDate
-        : typeof localFilters.endDate === "string"
+      startDate:
+        typeof localFilters.startDate === "string"
+          ? new Date(localFilters.startDate)
+          : localFilters.startDate,
+      endDate:
+        typeof localFilters.endDate === "string"
           ? new Date(localFilters.endDate)
           : localFilters.endDate,
       location: localFilters.location,
-      ...(esMinutal && {
-        startHour: localFilters.startHour ?? HORA_DESDE_DEFECTO,
-        endHour: localFilters.endHour ?? HORA_HASTA_DEFECTO,
-      }),
-    };
+    } as const;
     if (onFetch) onFetch(filtersToSend);
 
     // Actualizar URL solo con valores presentes
@@ -158,10 +140,6 @@ export default function Filtros({
     if ((localFilters.location || "").trim()) {
       params.set("location", localFilters.location);
     }
-    if (esMinutal) {
-      params.set("startHour", String(filtersToSend.startHour));
-      params.set("endHour", String(filtersToSend.endHour));
-    }
     router.replace(`${pathname}?${params.toString()}`);
   };
 
@@ -173,8 +151,7 @@ export default function Filtros({
         </h1>
         <h3 className="text-primary/70 text-center font-semibold">
           Seleccioná estación, integración y rango de fechas para descargar los
-          datos. Los datos minutales se descargan de a un día, con la franja
-          horaria que elijas.
+          datos.
         </h3>
       </header>
       <div className="flex flex-col flex-wrap md:flex-row gap-4 items-center justify-center text-primary">
@@ -229,7 +206,7 @@ export default function Filtros({
         {/* start date date picker */}
         <div className="flex flex-col gap-3">
           <Label htmlFor="startDate" className="px-1">
-            {esMinutal ? "Día" : "Desde"}
+            Desde
           </Label>
           <Popover open={openStartDate} onOpenChange={setOpenStartDate}>
             <PopoverTrigger asChild>
@@ -264,52 +241,43 @@ export default function Filtros({
           </Popover>
         </div>
 
-        {/* Minutales: franja horaria del día. Resto: fecha "hasta". */}
-        {esMinutal ? (
-          <HourRangeSelect
-            startHour={localFilters.startHour ?? HORA_DESDE_DEFECTO}
-            endHour={localFilters.endHour ?? HORA_HASTA_DEFECTO}
-            disabled={isLoading}
-            onChange={handleChange}
-          />
-        ) : (
-          <div className="flex flex-col gap-3">
-            <Label htmlFor="endDate" className="px-1">
-              Hasta
-            </Label>
-            <Popover open={openEndDate} onOpenChange={setOpenEndDate}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  name="endDate"
-                  id="endDate"
-                  className="w-48 justify-between font-normal"
-                >
-                  {formatDateUI(localFilters.endDate)}
-                  <ChevronDownIcon />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                className="w-auto overflow-hidden p-0"
-                align="start"
+        {/* endDate date picker */}
+        <div className="flex flex-col gap-3">
+          <Label htmlFor="endDate" className="px-1">
+            Hasta
+          </Label>
+          <Popover open={openEndDate} onOpenChange={setOpenEndDate}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                name="endDate"
+                id="endDate"
+                className="w-48 justify-between font-normal"
               >
-                <Calendar
-                  mode="single"
-                  selected={
-                    localFilters.endDate
-                      ? new Date(localFilters.endDate)
-                      : undefined
-                  }
-                  captionLayout="dropdown"
-                  onSelect={(date) => {
-                    handleChange("endDate", date);
-                    setOpenEndDate(false);
-                  }}
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-        )}
+                {formatDateUI(localFilters.endDate)}
+                <ChevronDownIcon />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              className="w-auto overflow-hidden p-0"
+              align="start"
+            >
+              <Calendar
+                mode="single"
+                selected={
+                  localFilters.endDate
+                    ? new Date(localFilters.endDate)
+                    : undefined
+                }
+                captionLayout="dropdown"
+                onSelect={(date) => {
+                  handleChange("endDate", date);
+                  setOpenEndDate(false);
+                }}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
         <Button
           className="btn btn-primary text-primary bg-secondary hover:bg-secondary/90 hover:shadow-primary active:shadow-none active:scale-99 mt-auto cursor-pointer select-none transition-all"
           onClick={handleApply}
