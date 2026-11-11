@@ -13,9 +13,9 @@ import { loginUser } from "@/lib/auth/service";
  * IP del cliente para el rate limiting.
  *
  * x-forwarded-for es una cabecera que el cliente puede falsificar, así que sólo
- * vale si la escribe un proxy de confianza — en Vercel la sobreescribe la
- * plataforma. Detrás de otro proxy hay que asegurarse de que haga lo mismo, o el
- * límite por IP se saltea mandando una cabecera distinta en cada request.
+ * vale si la escribe un proxy de confianza. En la VM ese proxy es caddy: hay que
+ * asegurarse de que la sobreescriba, o el límite por IP se saltea mandando una
+ * cabecera distinta en cada request.
  * Se toma el primer valor de la lista: es el cliente original, el resto son saltos.
  */
 async function getClientIp(): Promise<string | null> {
