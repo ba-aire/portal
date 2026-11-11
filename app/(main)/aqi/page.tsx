@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import AQIMap from "./components/map";
+import IcaPanel from "./components/ica-panel";
 
 export const metadata: Metadata = {
-  title: "BA Aire - AQI",
-  description: "AQI",
+  title: "BA Aire - Índice de calidad del aire",
+  description: "Índice de calidad del aire por estación y de la Ciudad",
 };
 
-export default async function AQIPage() {
-  return <AQIMap />;
+export default function AQIPage() {
+  return <IcaPanel />;
 }

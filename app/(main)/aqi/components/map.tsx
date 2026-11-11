@@ -1,120 +1,131 @@
 "use client";
 
 import type { StyleSpecification } from "maplibre-gl";
-import { useRef, useState } from "react";
+import { useState } from "react";
 // biome-ignore lint/suspicious/noShadowRestrictedNames: "Map" es el nombre del componente de react-map-gl
 import Map, { Marker, Popup } from "react-map-gl/maplibre";
+import type { IcaEstacion } from "@/lib/ica/models";
+import {
+  COLOR_SIN_DATO,
+  colorDeTexto,
+  franjaHoraria,
+  tipoDeEstacion,
+} from "@/lib/ica/presentacion";
 
-type NativeMarker = {
-  setScale?: (scale: number) => void;
-  getElement?: () => HTMLElement;
+// El mapa es CONTEXTO: dónde está cada estación. Lo que informa son los
+// marcadores, así que el fondo va en gris y apagado para que los colores del
+// índice sean lo único con color en la pantalla.
+//
+// Siguen siendo las teselas raster de OpenStreetMap, sin saturación y aclaradas.
+// Un estilo vectorial pide elegir un proveedor de teselas (o servirlas desde la
+// VM) y sumarlo al CSP de proxy.ts; con esto no cambia ningún tercero.
+const ESTILO: StyleSpecification = {
+  version: 8,
+  sources: {
+    osm: {
+      type: "raster",
+      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      tileSize: 256,
+      attribution: "© OpenStreetMap contributors",
+    },
+  },
+  layers: [
+    {
+      id: "osm",
+      type: "raster",
+      source: "osm",
+      paint: {
+        "raster-saturation": -1,
+        "raster-contrast": -0.15,
+        "raster-brightness-min": 0.25,
+        "raster-opacity": 0.85,
+      },
+    },
+  ],
 };
 
-export default function AQIMap() {
-  const positions = [
-    {
-      latitude: -34.60622428692798,
-      longitude: -58.43259391518152,
-      label: "Centenario",
-    },
-    {
-      latitude: -34.59966556048902,
-      longitude: -58.39135459883036,
-      label: "Córdoba",
-    },
-    {
-      latitude: -34.62529851309217,
-      longitude: -58.36553634939128,
-      label: "Catalinas",
-    },
-    {
-      latitude: -34.664058753484206,
-      longitude: -58.466630925182876,
-      label: "CIFA",
-    },
-  ];
+// El centro de la Ciudad, para ver las cuatro estaciones sin mover el mapa.
+const VISTA_INICIAL = { longitude: -58.42, latitude: -34.63, zoom: 11 };
 
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const markerRefs = useRef<Array<NativeMarker | null>>([]);
+export default function IcaMap({ estaciones }: { estaciones: IcaEstacion[] }) {
+  const [seleccionada, setSeleccionada] = useState<string | null>(null);
 
-  const _aqiValue = 250;
-  const _getAqiColor = (aqi: number): string => {
-    if (aqi <= 50) return "green";
-    if (aqi <= 100) return "yellow";
-    if (aqi <= 150) return "orange";
-    if (aqi <= 200) return "red";
-    if (aqi <= 300) return "purple";
-    return "maroon";
-  };
-
-  // Estilo válido de MapLibre con tiles OSM (raster)
-  const defaultStyle: StyleSpecification = {
-    version: 8,
-    sources: {
-      osm: {
-        type: "raster",
-        tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-        tileSize: 256,
-        attribution: "© OpenStreetMap contributors",
-      },
-    },
-    layers: [
-      {
-        id: "osm",
-        type: "raster",
-        source: "osm",
-      },
-    ],
-  };
-
-  const getScaleFromZoom = (currentZoom: number) => {
-    const scaled = 0.3 + currentZoom * 0.12;
-    return Math.max(0.8, Math.min(2, scaled));
-  };
+  // Una estación sin coordenadas en dim.stations no se dibuja: no se inventa
+  // una posición.
+  const ubicadas = estaciones.filter(
+    (e): e is IcaEstacion & { latitude: number; longitude: number } =>
+      e.latitude !== null && e.longitude !== null,
+  );
+  const activa = ubicadas.find((e) => e.station_code === seleccionada);
 
   return (
-    <div className="h-full w-full">
-      <Map
-        initialViewState={{
-          longitude: positions[0]?.longitude,
-          latitude: positions[0]?.latitude,
-          zoom: 11,
-        }}
-        mapStyle={defaultStyle}
-      >
-        {positions.map((p, i) => (
+    <Map initialViewState={VISTA_INICIAL} mapStyle={ESTILO}>
+      {ubicadas.map((e) => {
+        const fondo = e.color_hex ?? COLOR_SIN_DATO;
+        return (
           <Marker
-            key={`${p.latitude},${p.longitude}`}
-            latitude={p.latitude}
-            longitude={p.longitude}
-            anchor="bottom"
-            color="#EA4335"
-            scale={getScaleFromZoom(11)}
-            ref={(instance) => {
-              markerRefs.current[i] =
-                (instance as unknown as NativeMarker) || null;
+            key={e.station_code}
+            latitude={e.latitude}
+            longitude={e.longitude}
+            anchor="center"
+            onClick={(evento) => {
+              // Sin esto el clic llega al mapa, que cierra el popup recién abierto.
+              evento.originalEvent.stopPropagation();
+              setSeleccionada(e.station_code);
             }}
-            onClick={() => setSelectedIndex(i)}
-          />
-        ))}
-
-        {selectedIndex !== null && (
-          <Popup
-            latitude={positions[selectedIndex].latitude}
-            longitude={positions[selectedIndex].longitude}
-            closeOnClick={false}
-            onClose={() => setSelectedIndex(null)}
-            anchor="top"
           >
-            {/*<div style={{ color: getAqiColor(aqiValue), fontWeight: "bold" }}>
-              Calidad del aire: {aqiValue} (Moderada)
-            </div>*/}
-            <div className="">
-              Ubicación: {positions[selectedIndex].label}, Buenos Aires
-            </div>
-          </Popup>
-        )}
-      </Map>
-    </div>
+            <button
+              type="button"
+              aria-label={`${e.station_name}: ${e.categoria_nombre ?? "sin índice"}`}
+              className="flex h-10 min-w-10 cursor-pointer items-center justify-center rounded-full border-2 border-white px-2 text-sm font-bold shadow-md shadow-black/40"
+              style={{
+                backgroundColor: fondo,
+                color: colorDeTexto(fondo),
+                // Índice incompleto: borde punteado, como el círculo
+                // semitransparente del visor de la EEA.
+                borderStyle: e.indice_completo === false ? "dashed" : "solid",
+              }}
+            >
+              {e.valor ?? (e.categoria === null ? "–" : "")}
+            </button>
+          </Marker>
+        );
+      })}
+
+      {activa && (
+        <Popup
+          latitude={activa.latitude}
+          longitude={activa.longitude}
+          closeOnClick
+          onClose={() => setSeleccionada(null)}
+          anchor="top"
+          offset={18}
+          maxWidth="280px"
+        >
+          <div className="flex flex-col gap-1 text-sm text-gray-900">
+            <span className="font-bold">{activa.station_name}</span>
+            {tipoDeEstacion(activa.station_type) && (
+              <span className="text-xs text-gray-600">
+                Estación de {tipoDeEstacion(activa.station_type)?.toLowerCase()}
+              </span>
+            )}
+            <span>
+              {activa.categoria_nombre ?? "Sin índice en las últimas horas"}
+              {activa.valor !== null && ` · ${activa.valor}`}
+            </span>
+            {franjaHoraria(activa.ts_hour) && (
+              <span className="text-xs text-gray-600">
+                Hora: {franjaHoraria(activa.ts_hour)}
+              </span>
+            )}
+            {activa.station_description && (
+              <span className="text-xs text-gray-600">
+                {activa.station_description}
+              </span>
+            )}
+          </div>
+        </Popup>
+      )}
+    </Map>
   );
 }
