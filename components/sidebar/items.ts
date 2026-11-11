@@ -1,9 +1,9 @@
 import {
   ChartLine,
+  DatabaseSearch,
   Download,
-  Map as MapIcon,
-  Search,
-  Wind,
+  MapPinHouse,
+  MapPinned,
 } from "lucide-react";
 
 // ICA = índice de calidad del aire. La página es, sobre todo, un mapa.
@@ -11,13 +11,13 @@ export const ica = [
   {
     title: "ICA",
     url: "/ica",
-    icon: MapIcon,
+    icon: MapPinned,
   },
 ];
 
 export const estaciones = {
   title: "Estaciones",
-  icon: Wind,
+  icon: MapPinHouse,
   url: "/estaciones",
   items: [
     {
@@ -43,7 +43,7 @@ export const datos = [
   {
     title: "Explorar Datos",
     url: "/datos/contaminante",
-    icon: Search,
+    icon: DatabaseSearch,
   },
 ];
 
