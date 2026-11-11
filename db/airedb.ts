@@ -31,8 +31,13 @@ function getPool(): Pool {
     // algún día el rol tuviera permisos de más. Y una consulta colgada no se come
     // una conexión del pool para siempre: con refresco cada 5 s, una que tarde más
     // de eso ya llega tarde.
+    //
+    // jit=off: las vistas del índice (gold.v_ica_*) tienen un plan caro en el
+    // papel, y el JIT de PostgreSQL lo compila aunque devuelva cuatro filas: suma
+    // cerca de 1 s fijo por consulta (medido en ba-aire/data). Todas las
+    // consultas del portal son chicas; ninguna gana nada con el JIT.
     options:
-      "-c default_transaction_read_only=on -c statement_timeout=10000 -c application_name=portal",
+      "-c default_transaction_read_only=on -c statement_timeout=10000 -c jit=off -c application_name=portal",
   });
   return pool;
 }
