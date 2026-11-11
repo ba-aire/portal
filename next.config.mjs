@@ -31,6 +31,11 @@ const nextConfig = {
   // Lo leen lib/base-path.ts y sus usos en el cliente (fetch, EventSource, imágenes
   // de /public), que Next no prefija solo. `env` lo inlinea en el build.
   env: { NEXT_PUBLIC_BASE_PATH: basePath },
+  // La página del índice se llamaba /aqi. Se redirige para que un enlace guardado
+  // no termine en un 404. Next antepone el basePath a las dos rutas.
+  async redirects() {
+    return [{ source: "/aqi", destination: "/ica", permanent: false }];
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

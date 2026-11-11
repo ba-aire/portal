@@ -11,6 +11,10 @@ import {
 } from "@/components/ui/breadcrumb";
 import { cn, splitPathName } from "@/lib/utils";
 
+// Segmentos de la URL que no se muestran con la mayúscula inicial de siempre:
+// "ica" es una sigla.
+const ETIQUETAS: Record<string, string> = { ica: "ICA" };
+
 export function AppBreadCrumb() {
   const pathName = usePathname();
   const partesRuta = splitPathName(pathName);
@@ -27,14 +31,17 @@ export function AppBreadCrumb() {
                   "font-medium text-primary hover:text-secondary cursor-pointer select-none",
                 )}
               >
-                {parte.includes("-")
-                  ? parte
-                      .split("-")
-                      .map(
-                        (word) => word.charAt(0).toUpperCase() + word.slice(1),
-                      )
-                      .join(" ")
-                  : parte.charAt(0).toUpperCase() + parte.slice(1)}
+                {ETIQUETAS[parte]
+                  ? ETIQUETAS[parte]
+                  : parte.includes("-")
+                    ? parte
+                        .split("-")
+                        .map(
+                          (word) =>
+                            word.charAt(0).toUpperCase() + word.slice(1),
+                        )
+                        .join(" ")
+                    : parte.charAt(0).toUpperCase() + parte.slice(1)}
               </BreadcrumbLink>
             </BreadcrumbItem>
             {partesRuta.length > index + 1 && <BreadcrumbSeparator />}

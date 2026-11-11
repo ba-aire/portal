@@ -13,10 +13,10 @@ import { isHttps } from "@/lib/https";
 // Tampoco "/": se resuelve en el bloque especial de más abajo, antes de llegar acá.
 const protectedRoutes = [
   "/admin",
-  "/aqi",
   "/datos",
   "/descargas",
   "/estaciones",
+  "/ica",
   "/reportes",
 ];
 const publicRoutes = ["/login"];

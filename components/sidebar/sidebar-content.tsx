@@ -1,10 +1,10 @@
 "use client";
 
 import {
-  aqi,
   datos,
   descargas,
   estaciones,
+  ica,
   reportes,
 } from "@/components/sidebar/items";
 import {
@@ -20,7 +20,7 @@ export function Content() {
     <SidebarContent>
       <SidebarGroup>
         <SidebarGroupLabel>Tiempo Real</SidebarGroupLabel>
-        <Menu items={aqi} />
+        <Menu items={ica} />
         <MenuSub
           title={estaciones.title}
           items={estaciones.items}
