@@ -16,6 +16,7 @@ npm run test:coverage # Coverage report
 ```
 
 Database migrations (via Drizzle Kit, for the `portal` database only):
+
 ```bash
 npx drizzle-kit generate   # Generate a migration from schema changes in db/schema/
 ```
