@@ -15,7 +15,8 @@ import {
 // una columna por serie ("centenario", "cordoba NO2", "cifa PM25"...), que es lo
 // que dibujan el grafico y la tabla. Encima de eso agrega:
 //   - por minuto: `<serie>@status`, el status del minuto en silver (ok, alarm,
-//     zero, span, service, no_link, unknown). La UI filtra por status sin volver
+//     zero, span, service, no_link, unknown, o invalidado si una revision manual
+//     lo saco). La UI filtra por status sin volver
 //     a consultar.
 //   - por hora: `<serie> (validados)`, lo que publica gold SOLO si la hora es
 //     valida (>= 75 %), y las tres columnas crudas de silver (V14): `(crudo)`,
@@ -80,10 +81,27 @@ const COLUMNA_CRUDA: Record<
 // Todas filtran por estaciones ($1), parametros ($2) y el rango [$3, $4). Los
 // nombres de tabla y de vista son fijos: nada del request entra al SQL.
 
+// El status de un minuto ok o con alarma que una revision manual vigente
+// invalido (V18 en ba-aire/data) sale como 'invalidado': es lo que va a hacer
+// la horaria con el. La revision se busca por el instante PUBLICADO del minuto,
+// igual que en silver.refresh_hourly_reading: una hora antes para el BAM.
 const MINUTOS = `
-  SELECT m.ts_minute AS t, s.station_code, m.parameter_code, m.value, m.status
+  SELECT m.ts_minute AS t, s.station_code, m.parameter_code, m.value,
+         CASE WHEN m.status IN ('ok', 'alarm') AND EXISTS (
+                SELECT 1
+                FROM revision.v_vigente v
+                JOIN dim.parameters p ON p.parameter_code = m.parameter_code
+                WHERE v.accion = 'invalidar'
+                  AND v.station_id = m.station_id
+                  AND (v.parameter_code = m.parameter_code OR v.measurement = p.measurement)
+                  AND v.periodo @> (m.ts_minute
+                        - CASE WHEN mo.publica_hora_anterior THEN INTERVAL '1 hour'
+                               ELSE INTERVAL '0' END))
+              THEN 'invalidado' ELSE m.status END AS status
   FROM silver.minute_reading m
-  JOIN dim.stations s USING (station_id)
+  JOIN dim.stations s ON s.station_id = m.station_id
+  LEFT JOIN dim.instruments i ON i.instrument_id = m.instrument_id
+  LEFT JOIN dim.models mo ON mo.model_id = i.model_id
   WHERE s.station_code = ANY($1) AND m.parameter_code = ANY($2)
     AND m.ts_minute >= $3 AND m.ts_minute < $4
   ORDER BY 1`;

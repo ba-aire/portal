@@ -13,7 +13,10 @@ import { cn, splitPathName } from "@/lib/utils";
 
 // Segmentos de la URL que no se muestran con la mayúscula inicial de siempre:
 // "ica" es una sigla.
-const ETIQUETAS: Record<string, string> = { ica: "ICA" };
+const ETIQUETAS: Record<string, string> = {
+  ica: "ICA",
+  validacion: "Validación",
+};
 
 export function AppBreadCrumb() {
   const pathName = usePathname();
