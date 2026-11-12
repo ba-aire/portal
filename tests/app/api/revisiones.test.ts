@@ -1,6 +1,6 @@
 // @vitest-environment node
 //
-// Las rutas de revisión: quién entra (sesión para leer, EDITOR vigente para
+// Las rutas de revisión: quién entra (sesión para leer, EDITOR o ADMIN vigente para
 // escribir), qué se rechaza con 400 antes de tocar la base, y qué se le cuenta
 // al cliente cuando la base dice que no (un 400 con un mensaje para mostrar) o
 // cuando falla otra cosa (un 500 genérico).
@@ -16,7 +16,7 @@ vi.mock("@/lib/revision/repository", () => ({
 }));
 vi.mock("@/lib/revision/service", async (original) => ({
   ...(await original<typeof import("@/lib/revision/service")>()),
-  esEditorVigente: vi.fn(),
+  puedeRevisar: vi.fn(),
 }));
 
 import { POST as anular } from "@/app/api/revisiones/[id]/anular/route";
@@ -29,7 +29,7 @@ import {
   listarRevisiones,
   registrarRevision,
 } from "@/lib/revision/repository";
-import { esEditorVigente } from "@/lib/revision/service";
+import { puedeRevisar } from "@/lib/revision/service";
 
 const SESION = {
   userId: "1",
@@ -61,7 +61,7 @@ const pgError = (code: string, message: string) =>
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(getSession).mockResolvedValue(SESION);
-  vi.mocked(esEditorVigente).mockResolvedValue(true);
+  vi.mocked(puedeRevisar).mockResolvedValue(true);
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
@@ -106,11 +106,11 @@ describe("POST /api/revisiones", () => {
     expect((await POST(post(URL_BASE, ALTA))).status).toBe(401);
   });
 
-  it("403 si no es un EDITOR vigente, sin tocar la base", async () => {
-    vi.mocked(esEditorVigente).mockResolvedValue(false);
+  it("403 si no es un EDITOR o ADMIN vigente, sin tocar la base", async () => {
+    vi.mocked(puedeRevisar).mockResolvedValue(false);
     const res = await POST(post(URL_BASE, ALTA));
     expect(res.status).toBe(403);
-    expect(esEditorVigente).toHaveBeenCalledWith("ana@example.com", "EDITOR");
+    expect(puedeRevisar).toHaveBeenCalledWith("ana@example.com", "EDITOR");
     expect(registrarRevision).not.toHaveBeenCalled();
   });
 
@@ -204,8 +204,8 @@ describe("POST /api/revisiones/:id/anular", () => {
     expect((await anular(post(url, MOTIVO), ctx("3"))).status).toBe(401);
   });
 
-  it("403 si no es un EDITOR vigente", async () => {
-    vi.mocked(esEditorVigente).mockResolvedValue(false);
+  it("403 si no es un EDITOR o ADMIN vigente", async () => {
+    vi.mocked(puedeRevisar).mockResolvedValue(false);
     expect((await anular(post(url, MOTIVO), ctx("3"))).status).toBe(403);
     expect(anularRevision).not.toHaveBeenCalled();
   });

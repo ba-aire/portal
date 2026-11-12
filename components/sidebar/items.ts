@@ -65,7 +65,7 @@ export const descargas = [
 ];
 
 // Revisión manual de los datos: invalidar minutos, reincorporar alarmas. La ven
-// todos (el listado es parte de leer los datos); registrar, solo un EDITOR.
+// todos (el listado es parte de leer los datos); registrar y anular, un EDITOR o un ADMIN.
 export const validacion = [
   {
     title: "Validación",

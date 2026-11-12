@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { verifySession } from "@/lib/auth-session";
 import type { Catalogo } from "@/lib/revision/models";
 import { fetchCatalogo } from "@/lib/revision/repository";
+import { ROLES_QUE_REVISAN } from "@/lib/revision/service";
 import ValidacionPanel from "./components/validacion-panel";
 
 export const metadata: Metadata = {
@@ -26,6 +27,9 @@ export default async function ValidacionPage() {
   // El botón de alta se muestra según el rol de la cookie; el servidor vuelve a
   // verificar contra la base en cada escritura (lib/revision/service.ts).
   return (
-    <ValidacionPanel catalogo={catalogo} puedeEditar={data.role === "EDITOR"} />
+    <ValidacionPanel
+      catalogo={catalogo}
+      puedeEditar={ROLES_QUE_REVISAN.includes(data.role)}
+    />
   );
 }

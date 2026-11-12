@@ -5,7 +5,7 @@ vi.mock("@/lib/auth/repository", () => ({ getUserByEmail: vi.fn() }));
 
 import { getUserByEmail } from "@/lib/auth/repository";
 import {
-  esEditorVigente,
+  puedeRevisar,
   RevisionRechazada,
   traducirError,
 } from "@/lib/revision/service";
@@ -56,25 +56,22 @@ describe("traducirError", () => {
   );
 });
 
-describe("esEditorVigente", () => {
+describe("puedeRevisar", () => {
   beforeEach(() => vi.mocked(getUserByEmail).mockReset());
 
   const usuario = (role: string, isActive = true) =>
     ({ role, isActive }) as Awaited<ReturnType<typeof getUserByEmail>>;
 
-  it("un EDITOR activo en la base puede", async () => {
-    vi.mocked(getUserByEmail).mockResolvedValue(usuario("EDITOR"));
-    await expect(esEditorVigente("Ana@X.gob.ar", "EDITOR")).resolves.toBe(true);
+  it.each(["EDITOR", "ADMIN"])("un %s activo en la base puede", async (rol) => {
+    vi.mocked(getUserByEmail).mockResolvedValue(usuario(rol));
+    await expect(puedeRevisar("Ana@X.gob.ar", rol)).resolves.toBe(true);
     expect(getUserByEmail).toHaveBeenCalledWith("ana@x.gob.ar");
   });
 
-  it.each(["ADMIN", "VIEWER"])(
-    "%s no puede, sin consultar la base",
-    async (rol) => {
-      await expect(esEditorVigente("a@x", rol)).resolves.toBe(false);
-      expect(getUserByEmail).not.toHaveBeenCalled();
-    },
-  );
+  it("un VIEWER no puede, sin consultar la base", async () => {
+    await expect(puedeRevisar("a@x", "VIEWER")).resolves.toBe(false);
+    expect(getUserByEmail).not.toHaveBeenCalled();
+  });
 
   // La cookie dura 7 h: si lo deshabilitaron o le cambiaron el rol, no escribe.
   it.each([
@@ -83,6 +80,6 @@ describe("esEditorVigente", () => {
     ["borrado", null],
   ])("con la cookie de EDITOR pero %s, no puede", async (_caso, u) => {
     vi.mocked(getUserByEmail).mockResolvedValue(u);
-    await expect(esEditorVigente("a@x", "EDITOR")).resolves.toBe(false);
+    await expect(puedeRevisar("a@x", "EDITOR")).resolves.toBe(false);
   });
 });

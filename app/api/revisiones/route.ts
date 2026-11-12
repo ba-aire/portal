@@ -4,7 +4,7 @@ import { extractQueryParams } from "@/lib/datos/utils";
 import { ListarSchema, RegistrarSchema } from "@/lib/revision/models";
 import { listarRevisiones, registrarRevision } from "@/lib/revision/repository";
 import {
-  esEditorVigente,
+  puedeRevisar,
   RevisionRechazada,
   traducirError,
 } from "@/lib/revision/service";
@@ -40,15 +40,15 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/revisiones — registra una invalidación o una reincorporación.
-// Solo un EDITOR vigente. Quién registra lo pone la sesión, no el cuerpo.
+// Solo un EDITOR o ADMIN vigente. Quién registra lo pone la sesión, no el cuerpo.
 export async function POST(request: NextRequest) {
   const sesion = await getSession();
   if (!sesion) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
-  if (!(await esEditorVigente(sesion.email, sesion.role))) {
+  if (!(await puedeRevisar(sesion.email, sesion.role))) {
     return NextResponse.json(
-      { error: "Solo un editor puede revisar datos" },
+      { error: "Solo un editor o un administrador puede revisar datos" },
       { status: 403 },
     );
   }

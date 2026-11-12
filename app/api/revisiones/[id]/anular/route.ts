@@ -3,7 +3,7 @@ import { getSession } from "@/lib/auth-session";
 import { AnularSchema, RevisionIdSchema } from "@/lib/revision/models";
 import { anularRevision } from "@/lib/revision/repository";
 import {
-  esEditorVigente,
+  puedeRevisar,
   RevisionRechazada,
   traducirError,
 } from "@/lib/revision/service";
@@ -20,9 +20,9 @@ export async function POST(
   if (!sesion) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
-  if (!(await esEditorVigente(sesion.email, sesion.role))) {
+  if (!(await puedeRevisar(sesion.email, sesion.role))) {
     return NextResponse.json(
-      { error: "Solo un editor puede revisar datos" },
+      { error: "Solo un editor o un administrador puede revisar datos" },
       { status: 403 },
     );
   }

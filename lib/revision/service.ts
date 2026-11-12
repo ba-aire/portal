@@ -46,17 +46,19 @@ function capitalizar(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+/** Los roles que pueden registrar y anular revisiones. VIEWER solo lee. */
+export const ROLES_QUE_REVISAN: readonly string[] = ["EDITOR", "ADMIN"];
+
 /**
- * ¿Puede esta sesión revisar datos? Solo un EDITOR (el ADMIN administra el
- * sistema, no los datos).
+ * ¿Puede esta sesión revisar datos? Un EDITOR o un ADMIN.
  *
  * El rol de la cookie no alcanza para escribir: la sesión dura 7 h y no se
  * vuelve a consultar, así que alguien deshabilitado o pasado a VIEWER seguiría
  * pudiendo. Para una escritura en el archivo regulatorio se pregunta a la base
  * de usuarios en el momento.
  */
-export async function esEditorVigente(email: string, rolDeLaSesion: string) {
-  if (rolDeLaSesion !== "EDITOR") return false;
+export async function puedeRevisar(email: string, rolDeLaSesion: string) {
+  if (!ROLES_QUE_REVISAN.includes(rolDeLaSesion)) return false;
   const usuario = await getUserByEmail(email.toLowerCase());
-  return usuario?.isActive === true && usuario.role === "EDITOR";
+  return usuario?.isActive === true && ROLES_QUE_REVISAN.includes(usuario.role);
 }
