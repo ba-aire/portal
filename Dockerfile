@@ -1,4 +1,4 @@
-# Imagen del portal para la VM (quadlet en ba-aire/infra). Vercel no la usa.
+# Imagen del portal para la VM (quadlet en ba-aire/infra).
 #
 # La buildea el CI (.github/workflows/imagen.yml) y la publica en GHCR; la VM solo
 # la pullea por digest. No se buildea en la VM: necesita salida a npm y el build de

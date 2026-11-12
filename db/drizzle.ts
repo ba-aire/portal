@@ -10,8 +10,7 @@ if (!process.env.DATABASE_URL) {
 }
 
 // node-postgres y no el driver HTTP de Neon: en la VM la base es el Postgres del
-// cluster de TimescaleDB, que habla el protocolo normal por TCP. La app de Vercel,
-// que sigue en Neon, vive en la rama `vercel` con su driver original.
+// cluster de TimescaleDB, que habla el protocolo normal por TCP.
 //
 // El Pool no abre ninguna conexión hasta la primera query, así que el build (que
 // evalúa este módulo con una DATABASE_URL de mentira) no sale a la red.

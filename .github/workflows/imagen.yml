@@ -1,8 +1,7 @@
 name: Imagen
 
 # Buildea la imagen del Dockerfile y la publica en GHCR para la VM
-# (quadlets/portal.image en ba-aire/infra). La app de Vercel vive en la rama
-# `vercel` y no pasa por acá.
+# (quadlets/portal.image en ba-aire/infra).
 #
 # SOLO CON TAGS vX.Y.Z. Publicar en cada merge a main generaba una imagen por cada PR
 # de Dependabot. El paquete es privado, así que cada imagen consume cuota de GHCR
