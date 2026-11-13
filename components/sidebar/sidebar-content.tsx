@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  cargas,
   datos,
   descargas,
   estaciones,
@@ -32,6 +33,7 @@ export function Content() {
         <Menu items={reportes} />
         <Menu items={descargas} />
         <Menu items={validacion} />
+        <Menu items={cargas} />
       </SidebarGroup>
     </SidebarContent>
   );

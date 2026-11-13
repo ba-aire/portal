@@ -5,6 +5,7 @@ import {
   MapPinHouse,
   MapPinned,
   ShieldCheck,
+  Upload,
 } from "lucide-react";
 
 // ICA = índice de calidad del aire. La página es, sobre todo, un mapa.
@@ -71,5 +72,15 @@ export const validacion = [
     title: "Validación",
     url: "/validacion",
     icon: ShieldCheck,
+  },
+];
+
+// Carga manual de promedios horarios ya validados (cortes de telemetría). La
+// ven todos; cargar y anular, un EDITOR o un ADMIN.
+export const cargas = [
+  {
+    title: "Carga de datos",
+    url: "/cargas",
+    icon: Upload,
   },
 ];

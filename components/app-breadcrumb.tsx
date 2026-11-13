@@ -14,6 +14,7 @@ import { cn, splitPathName } from "@/lib/utils";
 // Segmentos de la URL que no se muestran con la mayúscula inicial de siempre:
 // "ica" es una sigla.
 const ETIQUETAS: Record<string, string> = {
+  cargas: "Carga de datos",
   ica: "ICA",
   validacion: "Validación",
 };
