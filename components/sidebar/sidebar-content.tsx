@@ -6,6 +6,7 @@ import {
   estaciones,
   ica,
   reportes,
+  validacion,
 } from "@/components/sidebar/items";
 import {
   SidebarContent,
@@ -30,6 +31,7 @@ export function Content() {
         <Menu items={datos} />
         <Menu items={reportes} />
         <Menu items={descargas} />
+        <Menu items={validacion} />
       </SidebarGroup>
     </SidebarContent>
   );

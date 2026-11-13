@@ -63,6 +63,8 @@ export const STATUS_MINUTO = [
   { value: "service", label: "Mantenimiento" },
   { value: "no_link", label: "Sin conexión" },
   { value: "unknown", label: "Desconocido" },
+  // No viene del equipo: una revision manual vigente lo saco (/validacion).
+  { value: "invalidado", label: "Invalidado a mano" },
 ] as const;
 export type StatusMinuto = (typeof STATUS_MINUTO)[number]["value"];
 

@@ -50,3 +50,38 @@ export async function queryAiredb<T>(
   const result = await getPool().query(text, params);
   return result.rows as T[];
 }
+
+/**
+ * Corre `fn` en una transacción de ESCRITURA y la confirma; ante cualquier
+ * error, ROLLBACK y relanza.
+ *
+ * La sesión es read-only por defecto (arriba): lo único que el rol `portal`
+ * puede escribir en airedb son las revisiones manuales, y solo a través de
+ * revision.registrar() y revision.anular() (V18 en ba-aire/data, SECURITY
+ * DEFINER). Esas funciones insertan, así que necesitan una transacción que se
+ * abra explícitamente como READ WRITE. El GRANT sigue siendo la defensa: el
+ * portal no tiene INSERT sobre ninguna tabla.
+ */
+export async function transaccionDeEscritura<T>(
+  fn: (
+    consulta: <F>(text: string, params?: unknown[]) => Promise<F[]>,
+  ) => Promise<T>,
+): Promise<T> {
+  const cliente = await getPool().connect();
+  try {
+    await cliente.query("BEGIN READ WRITE");
+    const resultado = await fn(
+      async <F>(text: string, params: unknown[] = []) => {
+        const r = await cliente.query(text, params);
+        return r.rows as F[];
+      },
+    );
+    await cliente.query("COMMIT");
+    return resultado;
+  } catch (error) {
+    await cliente.query("ROLLBACK").catch(() => {});
+    throw error;
+  } finally {
+    cliente.release();
+  }
+}

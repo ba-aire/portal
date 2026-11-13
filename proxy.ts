@@ -18,6 +18,7 @@ const protectedRoutes = [
   "/estaciones",
   "/ica",
   "/reportes",
+  "/validacion",
 ];
 const publicRoutes = ["/login"];
 
