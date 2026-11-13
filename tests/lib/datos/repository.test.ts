@@ -223,6 +223,37 @@ describe("fetchDatosPorContaminante", () => {
       });
     });
 
+    // V19: la hora viene de una carga manual. La UI la marca sobre validados.
+    it("marca la hora cargada a mano, y solo esa", async () => {
+      state.responder = responderPor({
+        "gold.v_hourly": [
+          {
+            ...fila("2026-10-01T10:00:00Z", "centenario", "co", "0.49"),
+            is_loaded: true,
+          },
+          {
+            ...fila("2026-10-01T11:00:00Z", "centenario", "co", "0.5"),
+            is_loaded: false,
+          },
+        ],
+      });
+
+      const { data } = await fetchDatosPorContaminante({
+        ...BASE,
+        contaminant: "co",
+        interval: "hour",
+      });
+
+      expect(data).toEqual([
+        {
+          time: "2026-10-01T10:00:00.000Z",
+          "centenario (validados)": 0.49,
+          "centenario (validados)@cargada": 1,
+        },
+        { time: "2026-10-01T11:00:00.000Z", "centenario (validados)": 0.5 },
+      ]);
+    });
+
     it("una hora invalida para gold igual trae las crudas, sin validados", async () => {
       state.responder = responderPor({
         "silver.hourly_reading h": [

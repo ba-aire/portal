@@ -34,3 +34,10 @@ export type TableConfig = typeof TABLE_CONFIG;
 export const DERIVED_COLUMNS: Record<string, string> = {
   dv: "dv_rumbo",
 };
+
+/**
+ * Columna de la consulta horaria con los parámetros cuya hora viene de una
+ * carga manual (V19 en ba-aire/data), separados por coma. No es una columna del
+ * Excel: se usa para pintar la celda, y va tal cual solo en el CSV.
+ */
+export const COLUMNA_CARGADAS = "cargadas";

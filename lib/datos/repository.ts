@@ -3,6 +3,7 @@ import type { Contaminant, Interval, Location } from "./models";
 import {
   FUENTES_CRUDAS,
   type FuenteCruda,
+  SUFIJO_CARGADA,
   SUFIJO_STATUS,
   SUFIJO_VALIDADOS,
 } from "./series";
@@ -18,6 +19,8 @@ import {
 //     zero, span, service, no_link, unknown, o invalidado si una revision manual
 //     lo saco). La UI filtra por status sin volver
 //     a consultar.
+//   - por hora: `<serie> (validados)@cargada` = 1 si la hora viene de una carga
+//     manual (V19) y no de lo medido en linea. La UI la marca.
 //   - por hora: `<serie> (validados)`, lo que publica gold SOLO si la hora es
 //     valida (>= 75 %), y las tres columnas crudas de silver (V14): `(crudo)`,
 //     `(crudo con alarmas)` y `(crudo sin alarmas)`.
@@ -65,6 +68,8 @@ type Fila = {
   // Solo la horaria de silver: las tres columnas crudas (V14).
   value_raw?: string | number | null;
   value_con_alarma?: string | number | null;
+  // Solo la horaria de gold: la hora viene de una carga manual (V19).
+  is_loaded?: boolean;
 };
 
 /** Columna de silver.hourly_reading de cada fuente cruda. */
@@ -118,7 +123,7 @@ const HORAS_SILVER = `
   ORDER BY 1`;
 
 const HORAS_GOLD = `
-  SELECT g.ts_hour AS t, s.station_code, g.parameter_code, g.value
+  SELECT g.ts_hour AS t, s.station_code, g.parameter_code, g.value, g.is_loaded
   FROM gold.v_hourly g
   JOIN dim.stations s USING (station_id)
   WHERE s.station_code = ANY($1) AND g.parameter_code = ANY($2)
@@ -178,6 +183,8 @@ function pivotear(
     const serie = `${f.station_code}${sufijoDe.get(f.parameter_code) ?? ""}${extra}`;
     fila[serie] = aNumero(f.value);
     if (conStatus) fila[`${serie}${SUFIJO_STATUS}`] = f.status ?? null;
+    // Solo donde es cierto: la mayoria de las horas no lleva la columna.
+    if (f.is_loaded) fila[`${serie}${SUFIJO_CARGADA}`] = 1;
   }
 }
 
