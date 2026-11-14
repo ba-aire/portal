@@ -46,15 +46,3 @@ export function franjaHoraria(tsHour: string | null): string | null {
   const fin = new Date(inicio.getTime() + 60 * 60 * 1000);
   return `${HORA.format(inicio)} a ${HORA.format(fin)}`;
 }
-
-const TIPOS: Record<string, string> = {
-  transito: "Tránsito",
-  industrial: "Industrial",
-  fondo: "Fondo urbano",
-};
-
-/** Nombre para mostrar del tipo de estación (dim.stations.station_type). */
-export function tipoDeEstacion(tipo: string | null): string | null {
-  if (!tipo) return null;
-  return TIPOS[tipo] ?? tipo;
-}

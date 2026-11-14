@@ -1,10 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import {
-  colorDeTexto,
-  franjaHoraria,
-  tipoDeEstacion,
-} from "@/lib/ica/presentacion";
+import { colorDeTexto, franjaHoraria } from "@/lib/ica/presentacion";
 
 describe("colorDeTexto", () => {
   // Los colores de las categorías vienen de airedb. El amarillo de "Moderada"
@@ -50,18 +46,5 @@ describe("franjaHoraria", () => {
   it("sin hora o con una inválida, null", () => {
     expect(franjaHoraria(null)).toBeNull();
     expect(franjaHoraria("no es una fecha")).toBeNull();
-  });
-});
-
-describe("tipoDeEstacion", () => {
-  it("traduce los tres tipos de dim.stations", () => {
-    expect(tipoDeEstacion("transito")).toBe("Tránsito");
-    expect(tipoDeEstacion("industrial")).toBe("Industrial");
-    expect(tipoDeEstacion("fondo")).toBe("Fondo urbano");
-  });
-
-  it("un tipo que no conoce lo muestra tal cual; sin tipo, null", () => {
-    expect(tipoDeEstacion("rural")).toBe("rural");
-    expect(tipoDeEstacion(null)).toBeNull();
   });
 });
