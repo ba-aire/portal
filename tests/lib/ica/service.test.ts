@@ -35,7 +35,7 @@ function fila(parcial: Partial<FilaEstacion>): FilaEstacion {
     station_description: "Sobre una avenida",
     ts_hour: HORA,
     categoria: 3,
-    categoria_nombre: "Dañina para grupos sensibles",
+    categoria_nombre: "Insalubre para grupos sensibles",
     color_hex: "#FF7E00",
     valor: 105,
     contaminante_principal: "no2",

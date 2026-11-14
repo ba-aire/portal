@@ -17,7 +17,6 @@ import {
   COLOR_SIN_DATO,
   colorDeTexto,
   franjaHoraria,
-  tipoDeEstacion,
 } from "@/lib/ica/presentacion";
 import IcaMap from "./map";
 
@@ -78,7 +77,9 @@ function TarjetaEstacion({
 }) {
   const colorDe = (categoria: number) =>
     categorias.find((c) => c.categoria === categoria)?.color_hex ?? null;
-  const tipo = tipoDeEstacion(estacion.station_type);
+  // El entorno que publica el GCBA ("Residencial-comercial"), no nuestra
+  // clasificación en tránsito / industrial / fondo.
+  const zona = estacion.station_zone;
 
   return (
     <Card className="border-primary/30">
@@ -87,8 +88,8 @@ function TarjetaEstacion({
           <span className="font-bold text-primary">
             {estacion.station_name}
           </span>
-          {tipo && (
-            <span className="text-xs text-muted-foreground">{tipo}</span>
+          {zona && (
+            <span className="text-xs text-muted-foreground">{zona}</span>
           )}
         </div>
 

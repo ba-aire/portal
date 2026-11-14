@@ -1,10 +1,10 @@
 import {
   ChartLine,
+  DatabaseCheck,
   DatabaseSearch,
   Download,
   MapPinHouse,
   MapPinned,
-  ShieldCheck,
   Upload,
 } from "lucide-react";
 
@@ -71,7 +71,7 @@ export const validacion = [
   {
     title: "Validación",
     url: "/validacion",
-    icon: ShieldCheck,
+    icon: DatabaseCheck,
   },
 ];
 

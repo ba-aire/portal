@@ -9,7 +9,6 @@ import {
   COLOR_SIN_DATO,
   colorDeTexto,
   franjaHoraria,
-  tipoDeEstacion,
 } from "@/lib/ica/presentacion";
 
 // El mapa es CONTEXTO: dónde está cada estación. Lo que informa son los
@@ -103,12 +102,8 @@ export default function IcaMap({ estaciones }: { estaciones: IcaEstacion[] }) {
           maxWidth="280px"
         >
           <div className="flex flex-col gap-1 text-sm text-gray-900">
-            <span className="font-bold">{activa.station_name}</span>
-            {tipoDeEstacion(activa.station_type) && (
-              <span className="text-xs text-gray-600">
-                Estación de {tipoDeEstacion(activa.station_type)?.toLowerCase()}
-              </span>
-            )}
+            {/* pr-6: el nombre no se mete debajo del botón de cerrar. */}
+            <span className="pr-6 font-bold">{activa.station_name}</span>
             <span>
               {activa.categoria_nombre ?? "Sin índice en las últimas horas"}
               {activa.valor !== null && ` · ${activa.valor}`}
@@ -118,8 +113,10 @@ export default function IcaMap({ estaciones }: { estaciones: IcaEstacion[] }) {
                 Hora: {franjaHoraria(activa.ts_hour)}
               </span>
             )}
+            {/* La descripción oficial del sitio (planilla de estaciones del
+                GCBA), no una clasificación nuestra. */}
             {activa.station_description && (
-              <span className="text-xs text-gray-600">
+              <span className="border-t pt-1 text-xs leading-snug text-gray-600">
                 {activa.station_description}
               </span>
             )}

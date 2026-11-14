@@ -243,3 +243,20 @@
   --sidebar-border: var(--secondary-20);
   --sidebar-ring: var(--secondary);
 }
+
+/* El botón de cerrar del cuadro de una estación en el mapa (MapLibre). Por
+   defecto es una "×" de 14 px pegada a la esquina: difícil de ver y de tocar. */
+.maplibregl-popup-close-button {
+  top: 4px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  font-size: 22px;
+  line-height: 1;
+  color: #4b5563;
+}
+.maplibregl-popup-close-button:hover {
+  background-color: #e5e7eb;
+  color: #111827;
+}
