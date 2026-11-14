@@ -8,6 +8,8 @@
 //     "<serie>@status"                  status del minuto
 //   por hora
 //     "<serie> (validados)"             gold: solo si la hora es valida (>= 75 %)
+//     "<serie> (validados)@cargada"     true si esa hora viene de una carga
+//                                       manual (V19) y no de lo medido en linea
 //     "<serie> (crudo)"                 silver: todos los minutos con valor
 //     "<serie> (crudo con alarmas)"     silver: minutos OK + alarma
 //     "<serie> (crudo sin alarmas)"     silver: solo minutos OK
@@ -16,6 +18,12 @@
 
 export const SUFIJO_VALIDADOS = " (validados)";
 export const SUFIJO_STATUS = "@status";
+export const SUFIJO_CARGADA = "@cargada";
+
+/** Columnas que acompanian a una serie (su status, su marca) y no son series. */
+export function esMarca(columna: string) {
+  return columna.endsWith(SUFIJO_STATUS) || columna.endsWith(SUFIJO_CARGADA);
+}
 
 /**
  * Las tres columnas horarias crudas de silver (V14), en el orden en que se
@@ -98,14 +106,15 @@ export function seriesDe(data: Fila[]): string[] {
   const set = new Set<string>();
   for (const fila of data) {
     for (const k of Object.keys(fila)) {
-      if (k !== "time" && !k.endsWith(SUFIJO_STATUS)) set.add(k);
+      if (k !== "time" && !esMarca(k)) set.add(k);
     }
   }
   return [...set];
 }
 
 /**
- * Devuelve las filas listas para el grafico y la tabla: sin columnas de status,
+ * Devuelve las filas listas para el grafico y la tabla: sin columnas de status
+ * (la marca de hora cargada si se conserva),
  * sin las columnas crudas apagadas, y por minuto con el valor en null donde el
  * status del minuto no esta elegido. Null y no "sacar la fila": el grafico tiene
  * que mostrar el hueco donde hubo, por ejemplo, una calibracion.
@@ -120,6 +129,11 @@ export function filtrarSeries(
     const salida: Fila = { time: fila.time };
     for (const [k, v] of Object.entries(fila)) {
       if (k === "time" || k.endsWith(SUFIJO_STATUS)) continue;
+      // La marca de hora cargada sigue de largo: la usan el grafico y la tabla.
+      if (k.endsWith(SUFIJO_CARGADA)) {
+        salida[k] = v;
+        continue;
+      }
 
       if (interval === "minute") {
         const status = fila[`${k}${SUFIJO_STATUS}`];

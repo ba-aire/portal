@@ -465,6 +465,76 @@ describe("downloadAsExcel", () => {
     expect(celdaDe(hojaDe(workbook, "validados"), "co").value).toBe(1.111);
   });
 
+  // Una hora cargada a mano (V19): un promedio ya validado que no sale de los
+  // minutos medidos. Va en celeste, y nunca en amarillo aunque lo medido en esa
+  // hora haya sido poco: el conteo de minutos K no es su respaldo.
+  describe("marca de hora cargada a mano", () => {
+    const CARGADA = {
+      time: FILA.time,
+      no: 5.26,
+      no2: 13.84,
+      nox_status: "H,K",
+      nox_k_status: 10,
+      cargadas: "no",
+    };
+
+    it("pinta de celeste el valor cargado en validados, y no de amarillo", async () => {
+      await downloadAsExcel([CARGADA], "x.xlsx", "hour");
+
+      const hoja = hojaDe(await excelDescargado(), "validados");
+      expect(colorDeFondo(celdaDe(hoja, "no"))).toBe("FFDDEBF7");
+      // El otro parámetro del equipo no se cargó: sigue con su aviso.
+      expect(colorDeFondo(celdaDe(hoja, "no2"))).toBe("FFFFEB9C");
+    });
+
+    it("pinta de celeste el status con H en crudos", async () => {
+      await downloadAsExcel([CARGADA], "x.xlsx", "hour");
+
+      const hoja = hojaDe(await excelDescargado(), "crudos");
+      expect(colorDeFondo(celdaDe(hoja, "nox_status"))).toBe("FFDDEBF7");
+      // El conteo de minutos K es lo medido: conserva su aviso.
+      expect(colorDeFondo(celdaDe(hoja, "nox_k_status"))).toBe("FFFFEB9C");
+    });
+
+    // La planilla general recibe la hoja validados pegada: ni una columna más.
+    it("no agrega la lista de cargadas como columna en ninguna hoja", async () => {
+      await downloadAsExcel([CARGADA], "x.xlsx", "hour");
+
+      const libro = await excelDescargado();
+      for (const nombre of ["crudos", "validados"]) {
+        const textos: string[] = [];
+        hojaDe(libro, nombre).eachRow((fila) => {
+          fila.eachCell((c) => textos.push(String(c.value).toLowerCase()));
+        });
+        expect(textos).not.toContain("cargadas");
+      }
+    });
+
+    it("explica la H y el celeste en las notas", async () => {
+      await downloadAsExcel([CARGADA], "x.xlsx", "hour");
+
+      const libro = await excelDescargado();
+      const notas = (nombre: string) => {
+        const t: string[] = [];
+        hojaDe(libro, nombre).eachRow((fila) =>
+          t.push(String(fila.getCell(1).value)),
+        );
+        return t.join("\n");
+      };
+      expect(notas("crudos")).toContain("H = Hora cargada a mano");
+      expect(notas("validados")).toContain(
+        "Valor en celeste: hora cargada a mano",
+      );
+    });
+
+    // En el CSV no hay colores: la lista va como columna.
+    it("en el CSV la lista de cargadas va como columna", async () => {
+      downloadAsCSV([CARGADA], "x.csv", "hour");
+      const texto = await textoDescargado();
+      expect(texto.split("\n")[0].toLowerCase()).toContain("cargadas");
+    });
+  });
+
   describe("marca de respaldo insuficiente", () => {
     // 45 minutos k = 75% de la hora: por debajo, el promedio validado se
     // entrega igual pero resaltado, para que quien analiza sepa que la hora

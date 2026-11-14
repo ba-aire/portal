@@ -179,3 +179,37 @@ describe("seriesDeUnaFuente", () => {
     ]);
   });
 });
+
+// V19: la marca de hora cargada acompaña a su serie hasta el gráfico y la
+// tabla, pero no es una serie.
+describe("la marca de hora cargada", () => {
+  const CARGADAS: Fila[] = [
+    {
+      time: "h0",
+      "centenario (validados)": 0.5,
+      "centenario (validados)@cargada": 1,
+      "centenario (crudo)": 0.7,
+    },
+  ];
+
+  it("no cuenta como serie", () => {
+    expect(seriesDe(CARGADAS)).toEqual([
+      "centenario (validados)",
+      "centenario (crudo)",
+    ]);
+  });
+
+  it("sobrevive al filtro, para que la UI la pueda dibujar", () => {
+    const r = filtrarSeries(CARGADAS, "hour", {
+      statuses: TODOS,
+      fuentes: NINGUNA,
+    });
+    expect(r).toEqual([
+      {
+        time: "h0",
+        "centenario (validados)": 0.5,
+        "centenario (validados)@cargada": 1,
+      },
+    ]);
+  });
+});

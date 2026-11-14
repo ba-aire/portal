@@ -17,6 +17,7 @@ import {
   type FuenteCruda,
   fuenteCruda,
   ordenarSeries,
+  SUFIJO_CARGADA,
   serieBase,
   seriesDe,
   seriesDeUnaFuente,
@@ -122,6 +123,42 @@ export default function Chart({ data }: ChartProps) {
     return label.replace(/\bPM25\b/, "PM2.5");
   };
 
+  // Una hora cargada a mano se dibuja con un punto hueco sobre su serie: el
+  // resto de la linea no lleva puntos. Recharts pide devolver siempre un nodo.
+  const puntoCargada =
+    (location: string) =>
+    (props: {
+      cx?: number;
+      cy?: number;
+      index?: number;
+      payload?: Record<string, unknown>;
+    }) => {
+      const key = `${location}-${props.index}`;
+      if (
+        props.cx == null ||
+        props.cy == null ||
+        !props.payload?.[`${location}${SUFIJO_CARGADA}`]
+      ) {
+        return <g key={key} />;
+      }
+      return (
+        <circle
+          key={key}
+          cx={props.cx}
+          cy={props.cy}
+          r={4}
+          fill="white"
+          stroke={color(location)}
+          strokeWidth={2}
+        >
+          <title>Hora cargada a mano</title>
+        </circle>
+      );
+    };
+  const hayCargadas = data.some((row) =>
+    Object.keys(row).some((k) => k.endsWith(SUFIJO_CARGADA) && row[k]),
+  );
+
   // Mapeo los datos para el gráfico
   const chartData = data.map((row) => {
     const mappedRow: Record<string, string | number | null> = {
@@ -147,6 +184,11 @@ export default function Chart({ data }: ChartProps) {
       const n = Number(raw);
       mappedRow[location] = Number.isFinite(n) ? n : null;
     });
+
+    // La marca de hora cargada viaja con la fila: la lee el punto de la serie.
+    for (const [k, v] of Object.entries(row)) {
+      if (k.endsWith(SUFIJO_CARGADA)) mappedRow[k] = v;
+    }
 
     return mappedRow;
   });
@@ -246,13 +288,19 @@ export default function Chart({ data }: ChartProps) {
               dataKey={location}
               stroke={color(location)}
               name={displayName(location)}
-              dot={false}
+              dot={puntoCargada(location)}
               strokeWidth={location.includes("NOx") ? 3 : 2}
               strokeDasharray={trazo(location)}
             />
           ))}
         </LineChart>
       </ResponsiveContainer>
+      {hayCargadas && (
+        <p className="-mt-24 text-center text-xs text-muted-foreground">
+          ○ Punto hueco: hora cargada a mano, un promedio ya validado que no
+          viene de lo medido en línea.
+        </p>
+      )}
     </div>
   );
 }

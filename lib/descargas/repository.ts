@@ -7,6 +7,8 @@
  *   por hora    `<p>` validado (gold.v_hourly: solo minutos K), `<p>_raw` crudo
  *               (silver value_raw: todos los minutos), `<grupo>_status` los status
  *               observados en la hora, `<grupo>_k_status` los minutos K.
+ *               `cargadas`: los parámetros cuya hora viene de una carga manual
+ *               (V19), separados por coma; su grupo lleva la letra H en el status.
  *   por minuto  `<p>` el valor del minuto en silver, `<grupo>_status` su status.
  *   los dos     `dv_rumbo`, el rumbo de 16 puntos de la dirección (dim.rumbo).
  *
@@ -23,7 +25,7 @@
  */
 
 import { queryAiredb } from "@/db/airedb";
-import { DERIVED_COLUMNS, TABLE_CONFIG } from "./config";
+import { COLUMNA_CARGADAS, DERIVED_COLUMNS, TABLE_CONFIG } from "./config";
 
 // Los status de silver, con la letra de la convención de la red (la misma que
 // emiten los drivers). `v` no aparece: silver la toma como K.
@@ -67,6 +69,8 @@ const COLUMNAS_HORA = [
     ([g, c]) =>
       `max(n_minutes_valid) FILTER (WHERE parameter_code IN (${c.metrics.map(sqlLit).join(", ")})) AS ${sqlId(`${g}_k_status`)}`,
   ),
+  // Los parámetros de la hora que vienen de una carga manual (V19).
+  `string_agg(parameter_code, ',' ORDER BY parameter_code) FILTER (WHERE cargada) AS ${sqlId(COLUMNA_CARGADAS)}`,
 ].join(",\n      ");
 
 const COLUMNAS_STATUS_HORA = GRUPOS.map(
@@ -89,20 +93,33 @@ const COLUMNAS_MINUTO = [
 // ---- Las consultas -------------------------------------------------------------
 // $1 estación, $2 desde, $3 hasta (excluido), $4 los parámetros de la descarga.
 
-// Una hora de gold es la de silver con el 75 % aplicado: el LEFT JOIN la trae
-// aunque sea inválida (gold publica el valor igual), y validados la resalta por
-// el conteo de minutos K, que es el mismo criterio.
+// Una hora de gold es la de silver con el 75 % aplicado: gold publica el valor
+// aunque la hora sea inválida, y validados la resalta por el conteo de minutos
+// K, que es el mismo criterio.
+//
+// FULL JOIN y no LEFT JOIN desde silver: una hora CARGADA A MANO (V19) puede no
+// tener ninguna fila en silver (un corte de telemetría), y tiene que salir
+// igual. Ahí `validado` es el valor cargado y no hay crudo ni minutos K.
 const HORAS = `
-  WITH horas AS (
-    SELECT h.ts_hour, h.parameter_code, h.value_raw, h.n_minutes_valid,
-           g.value AS validado
+  WITH medidas AS (
+    SELECT h.ts_hour, h.parameter_code, h.value_raw, h.n_minutes_valid
     FROM silver.hourly_reading h
     JOIN dim.stations s USING (station_id)
-    LEFT JOIN gold.v_hourly g
-      ON g.station_id = h.station_id AND g.parameter_code = h.parameter_code
-     AND g.ts_hour = h.ts_hour
     WHERE s.station_code = $1 AND h.ts_hour >= $2 AND h.ts_hour < $3
       AND h.parameter_code = ANY($4)
+  ),
+  publicadas AS (
+    SELECT g.ts_hour, g.parameter_code, g.value AS validado, g.is_loaded
+    FROM gold.v_hourly g
+    JOIN dim.stations s USING (station_id)
+    WHERE s.station_code = $1 AND g.ts_hour >= $2 AND g.ts_hour < $3
+      AND g.parameter_code = ANY($4)
+  ),
+  horas AS (
+    SELECT ts_hour, parameter_code, m.value_raw, m.n_minutes_valid,
+           p.validado, coalesce(p.is_loaded, false) AS cargada
+    FROM medidas m
+    FULL JOIN publicadas p USING (ts_hour, parameter_code)
   ),
 
   -- Los status observados en cada hora. Un equipo que publica la hora anterior
@@ -122,6 +139,13 @@ const HORAS = `
     WHERE s.station_code = $1
       AND m.ts_minute >= $2 AND m.ts_minute < $3::timestamptz + INTERVAL '1 hour'
       AND m.parameter_code = ANY($4)
+    -- La hora cargada suma su propia letra al grupo, H, junto a las de los
+    -- minutos que haya (o sola, si no hubo ninguno).
+    UNION ALL
+    SELECT h.ts_hour, dp.measurement, 'H'
+    FROM horas h
+    JOIN dim.parameters dp USING (parameter_code)
+    WHERE h.cargada
   ),
 
   status AS (
@@ -174,6 +198,7 @@ function normalizar(fila: Fila): Record<string, string | number | null> {
     } else if (
       typeof v === "string" &&
       !k.endsWith("_status") &&
+      k !== COLUMNA_CARGADAS &&
       !Object.values(DERIVED_COLUMNS).includes(k)
     ) {
       const n = Number(v);

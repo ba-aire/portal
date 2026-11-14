@@ -67,11 +67,50 @@ describe("fetchDatosPorEstacion", () => {
       const { sql } = ultimaLlamada();
 
       expect(sql).toContain("FROM silver.hourly_reading");
-      expect(sql).toContain("LEFT JOIN gold.v_hourly");
+      expect(sql).toContain("FROM gold.v_hourly");
       expect(sql).toContain(`AS "co_raw"`);
       expect(sql).toMatch(
         /max\(validado\) FILTER \(WHERE parameter_code = 'co'\) AS "co"/,
       );
+    });
+
+    // Una hora cargada a mano (V19) puede no tener fila en silver: con un LEFT
+    // JOIN desde silver no saldría en la descarga.
+    it("trae también las horas que solo existen por una carga manual", async () => {
+      await fetchDatosPorEstacion({ ...BASE, integration: "hour" });
+      const { sql } = ultimaLlamada();
+
+      expect(sql).toContain(
+        "FULL JOIN publicadas p USING (ts_hour, parameter_code)",
+      );
+      expect(sql).not.toContain("LEFT JOIN gold.v_hourly");
+    });
+
+    it("marca las horas cargadas: la lista de parámetros y la letra H en el status", async () => {
+      state.filas = [
+        {
+          time: new Date("2026-10-06T10:00:00Z"),
+          no: "5.26",
+          nox_status: "H,K",
+          cargadas: "no,no2",
+        },
+      ];
+      const { data } = await fetchDatosPorEstacion({
+        ...BASE,
+        integration: "hour",
+      });
+      const { sql } = ultimaLlamada();
+
+      expect(sql).toContain(`FILTER (WHERE cargada) AS "cargadas"`);
+      expect(sql).toMatch(
+        /UNION ALL SELECT h\.ts_hour, dp\.measurement, 'H' FROM horas h/,
+      );
+      // Queda como texto: no se convierte a número como el resto.
+      expect(data[0]).toMatchObject({
+        no: 5.26,
+        nox_status: "H,K",
+        cargadas: "no,no2",
+      });
     });
 
     it("cuenta los minutos K por grupo y lista los status observados", async () => {

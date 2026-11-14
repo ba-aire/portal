@@ -19,7 +19,7 @@ import {
   formatInstante,
   formatPeriodo,
 } from "@/lib/periodo";
-import { DERIVED_COLUMNS, TABLE_CONFIG } from "./config";
+import { COLUMNA_CARGADAS, DERIVED_COLUMNS, TABLE_CONFIG } from "./config";
 
 // Listas de columnas numéricas agrupadas por cantidad de decimales
 const ONE_DECIMAL_COLUMNS = new Set<string>([
@@ -56,6 +56,19 @@ const LOW_COVERAGE_FILL: ExcelJS.Fill = {
   type: "pattern",
   pattern: "solid",
   fgColor: { argb: "FFFFEB9C" },
+};
+
+// Celeste para la hora cargada a mano (V19): un promedio ya validado que no
+// viene de lo medido en línea. Distinto del amarillo, que avisa de poco respaldo.
+const LOADED_FILL: ExcelJS.Fill = {
+  type: "pattern",
+  pattern: "solid",
+  fgColor: { argb: "FFDDEBF7" },
+};
+const LOADED_LEGEND_FONT: Partial<ExcelJS.Font> = {
+  italic: true,
+  size: 10,
+  color: { argb: "FF1F4E79" },
 };
 
 // Bordes de la grilla: finos para las celdas, medios para separar grupos de
@@ -111,7 +124,8 @@ const LOW_COVERAGE_LEGEND_FONT: Partial<ExcelJS.Font> = {
 // aparece: silver la toma como K.
 const STATUS_LEGEND =
   "Status: K = OK (dato válido) · A = Alarma equipo · M = Mantenimiento · " +
-  "Z = Zero cal · S = Span cal · C = Sin comunicación · ? = Desconocido · s/d = sin dato";
+  "Z = Zero cal · S = Span cal · C = Sin comunicación · H = Hora cargada a mano · " +
+  "? = Desconocido · s/d = sin dato";
 
 // Mapa métrica -> grupo (equipo), para ubicar el conteo de minutos válidos y
 // los bordes de la grilla. Las columnas derivadas van con su métrica.
@@ -226,6 +240,10 @@ function getOrderedColumns(
       }
     }
   });
+
+  // La lista de parámetros cargados no es una columna de las hojas: se usa para
+  // pintar. En el CSV ("all") sí va, al final, porque ahí no hay colores.
+  if (variant !== "all") known.add(COLUMNA_CARGADAS);
 
   // Agregar cualquier campo adicional que no esté en TABLE_CONFIG
   allFields.forEach((field) => {
@@ -401,10 +419,35 @@ function baseColumnName(col: string): string {
 }
 
 /**
- * Indica si el promedio validado de esa celda se construyó con menos de
- * 45 minutos con status k (75% de la hora).
+ * Indica si el valor validado de esa celda viene de una carga manual (V19) y no
+ * de lo medido en línea.
  */
-function hasLowKCoverage(row: DataRow, column: string): boolean {
+export function isLoadedHour(row: DataRow, column: string): boolean {
+  const cargadas = row[COLUMNA_CARGADAS];
+  return (
+    typeof cargadas === "string" &&
+    cargadas.split(",").includes(column) &&
+    typeof row[column] === "number"
+  );
+}
+
+/**
+ * Indica si esa celda es el status de un equipo con alguna hora cargada a mano
+ * (lleva la letra H).
+ */
+function hasLoadedStatus(row: DataRow, column: string): boolean {
+  if (!column.endsWith("_status") || column.endsWith("_k_status")) return false;
+  const status = row[column];
+  return typeof status === "string" && status.split(",").includes("H");
+}
+
+/**
+ * Indica si el promedio validado de esa celda se construyó con menos de
+ * 45 minutos con status k (75% de la hora). Una hora cargada a mano no cuenta:
+ * su valor no sale de esos minutos.
+ */
+export function hasLowKCoverage(row: DataRow, column: string): boolean {
+  if (isLoadedHour(row, column)) return false;
   const tableKey = METRIC_TO_TABLE.get(column);
   if (!tableKey) return false;
   const kCount = row[`${tableKey}_k_status`];
@@ -461,6 +504,8 @@ interface WorksheetOptions {
   stripRawSuffix?: boolean;
   /** Resalta la celda cuando el predicado da true (respaldo insuficiente). */
   highlightCell?: (row: DataRow, column: string) => boolean;
+  /** Pinta de celeste la celda cuando el predicado da true (hora cargada a mano). */
+  loadedCell?: (row: DataRow, column: string) => boolean;
 }
 
 /**
@@ -591,6 +636,9 @@ function addDataToWorksheet(
         if (options.highlightCell?.(row, col)) {
           cell.fill = LOW_COVERAGE_FILL;
         }
+        if (options.loadedCell?.(row, col)) {
+          cell.fill = LOADED_FILL;
+        }
       }
     }
   });
@@ -655,6 +703,11 @@ export async function downloadAsExcel(
             fill: LOW_COVERAGE_FILL,
             font: LOW_COVERAGE_LEGEND_FONT,
           },
+          {
+            text: "Status con H, en celeste: la hora de ese equipo se cargó a mano (un promedio ya validado, por ejemplo bajado del analizador después de un corte). El valor cargado está en la hoja VALIDADOS; acá se ve lo medido en línea, si hubo.",
+            fill: LOADED_FILL,
+            font: LOADED_LEGEND_FONT,
+          },
         ]
       : []),
   ];
@@ -668,6 +721,11 @@ export async function downloadAsExcel(
       text: `Valor resaltado en amarillo: la hora se promedió con menos de ${MIN_K_MINUTES_PER_HOUR} minutos válidos (75% de la hora), por lo que es menos representativa.`,
       fill: LOW_COVERAGE_FILL,
       font: LOW_COVERAGE_LEGEND_FONT,
+    },
+    {
+      text: "Valor en celeste: hora cargada a mano. Es un promedio ya validado que no viene de lo medido en línea (por ejemplo, bajado del analizador después de un corte).",
+      fill: LOADED_FILL,
+      font: LOADED_LEGEND_FONT,
     },
   ];
 
@@ -684,6 +742,7 @@ export async function downloadAsExcel(
     hourRangeLabels: isHour,
     stripRawSuffix: true,
     highlightCell: isHour ? hasLowKCount : undefined,
+    loadedCell: isHour ? hasLoadedStatus : undefined,
   });
 
   // Segunda worksheet: "validados", sin columnas de estado ni series _raw.
@@ -700,6 +759,7 @@ export async function downloadAsExcel(
       legend: validadosLegend,
       hourRangeLabels: true,
       highlightCell: hasLowKCoverage,
+      loadedCell: isLoadedHour,
     });
   }
 
