@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { PageUnderConstruction } from "@/components/page-under-construction";
+import ReportesPanel from "./components/reportes-panel";
 
 export const metadata: Metadata = {
   title: "BA Aire - Reportes",
-  description: "Reportes de calidad del aire",
+  description:
+    "Reportes mensuales de calidad del aire por estación y contaminante",
 };
 
-export default async function ReportesPage() {
-  return <PageUnderConstruction />;
+export default function ReportesPage() {
+  return <ReportesPanel />;
 }
