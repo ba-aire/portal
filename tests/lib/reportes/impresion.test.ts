@@ -10,6 +10,7 @@ import {
   firmarToken,
   generarPdf,
   ImpresionNoConfigurada,
+  LISTA_PARA_IMPRIMIR,
   nombreDeArchivo,
   type ReportePedido,
   rutaDelReporte,
@@ -119,9 +120,7 @@ describe("generarPdf", () => {
     expect(form.get("preferCssPageSize")).toBe("true");
     expect(form.get("printBackground")).toBe("true");
     expect(form.get("marginTop")).toBe("0");
-    expect(form.get("waitForExpression")).toContain("document.fonts");
-    // Sin hojas (p. ej. el login, si el token no sirvió) no imprime.
-    expect(form.get("waitForExpression")).toContain(".hoja");
+    expect(form.get("waitForExpression")).toBe(LISTA_PARA_IMPRIMIR);
   });
 
   it("si Gotenberg falla, el error dice el estado", async () => {
@@ -132,6 +131,51 @@ describe("generarPdf", () => {
       vi.fn(async () => new Response("timeout", { status: 503 })),
     );
     await expect(generarPdf(PEDIDO)).rejects.toThrow("503");
+  });
+});
+
+describe("LISTA_PARA_IMPRIMIR", () => {
+  // La evalúa Chromium; acá, contra un document de mentira.
+  const evaluar = (doc: {
+    fonts: { load: () => Promise<unknown> };
+    querySelector: (s: string) => unknown;
+  }) => {
+    const w: Record<string, unknown> = {};
+    return () =>
+      new Function("window", "document", `return (${LISTA_PARA_IMPRIMIR});`)(
+        w,
+        doc,
+      );
+  };
+
+  it("espera a que las fuentes terminen de cargar y a que haya hojas", async () => {
+    const cargar: (() => void)[] = [];
+    const load = vi.fn(
+      () =>
+        new Promise<void>((r) => {
+          cargar.push(r);
+        }),
+    );
+    let hojas: unknown = null;
+    const lista = evaluar({ fonts: { load }, querySelector: () => hojas });
+    expect(lista()).toBe(false);
+    expect(load).toHaveBeenCalledTimes(3); // 400, 600 y 700, una sola vez
+    hojas = {};
+    expect(lista()).toBe(false); // hay hojas, pero las fuentes no llegaron
+    for (const r of cargar) r();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(lista()).toBe(true);
+    expect(load).toHaveBeenCalledTimes(3);
+  });
+
+  it("sin hojas (el login, si el token no sirvió) no imprime nunca", async () => {
+    const lista = evaluar({
+      fonts: { load: async () => [] },
+      querySelector: () => null,
+    });
+    lista();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(lista()).toBe(false);
   });
 });
 

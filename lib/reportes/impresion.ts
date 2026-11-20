@@ -86,6 +86,28 @@ export function rutaDelReporte(p: ReportePedido): string {
 export class ImpresionNoConfigurada extends Error {}
 
 /**
+ * Cuándo puede imprimir Chromium (la evalúa Gotenberg hasta que da true).
+ *
+ * - Las fuentes, CARGADAS A PROPÓSITO: `document.fonts.status === 'loaded'` no
+ *   alcanza, porque un @font-face recién empieza a bajar cuando el layout lo usa,
+ *   y hasta entonces el status ya dice 'loaded'. Chromium imprimía en ese hueco
+ *   con el texto todavía invisible (font-display: block): hojas con líneas y
+ *   tablas y sin una letra. `document.fonts.load()` las pide y devuelve una
+ *   promesa; la expresión la arranca una vez y espera la marca. En la plantilla
+ *   clásica no hay @font-face de Source Sans y la promesa resuelve enseguida.
+ * - Las hojas: una página sin autorización no es un 401. Next ya empezó a
+ *   transmitir (hay un loading.tsx en la raíz) y el redirect a /login sale como
+ *   200 con un meta refresh: sin esta condición Gotenberg imprimiría el login;
+ *   con ella, falla por tiempo.
+ */
+export const LISTA_PARA_IMPRIMIR = [
+  "(window.__fuentes ??= Promise.all(['400', '600', '700'].map((p) =>",
+  "  document.fonts.load(p + \" 12px 'Source Sans 3'\")))",
+  "  .then(() => { window.__fuentesListas = true; }),",
+  " window.__fuentesListas === true && document.querySelector('.hoja') !== null)",
+].join("");
+
+/**
  * El PDF del reporte, impreso por Gotenberg.
  *
  * GOTENBERG_URL       dónde escucha Gotenberg (VM: el contenedor; dev:
@@ -113,15 +135,7 @@ export async function generarPdf(p: ReportePedido): Promise<Buffer> {
   for (const lado of ["Top", "Bottom", "Left", "Right"]) {
     form.set(`margin${lado}`, "0");
   }
-  // Imprimir recién cuando están las hojas y la tipografía cargó (si no,
-  // Chromium usa la de reemplazo y el texto se corre). Las hojas, porque una
-  // página sin autorización no es un 401: Next ya empezó a transmitir (hay un
-  // loading.tsx en la raíz) y el redirect a /login sale como 200 con un meta
-  // refresh. Sin esta condición Gotenberg imprimiría el login; con ella, falla.
-  form.set(
-    "waitForExpression",
-    "document.fonts.status === 'loaded' && document.querySelector('.hoja') !== null",
-  );
+  form.set("waitForExpression", LISTA_PARA_IMPRIMIR);
 
   const res = await fetch(`${gotenberg}/forms/chromium/convert/url`, {
     method: "POST",
