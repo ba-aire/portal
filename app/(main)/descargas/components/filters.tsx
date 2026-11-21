@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { filtrosSchema } from "@/lib/descargas/models";
+import { type Estacion, OPCIONES_ESTACION } from "@/lib/estaciones";
 import { HORA_DESDE_DEFECTO, HORA_HASTA_DEFECTO } from "@/lib/rango-minutal";
 
 export const promedioOptions = [
@@ -30,15 +31,8 @@ export const promedioOptions = [
   { label: "Horarios", value: "hour" },
 ];
 
-export const locationOptions = [
-  { label: "Centenario", value: "centenario" },
-  { label: "La Boca", value: "catalinas" },
-  { label: "Cordoba", value: "cordoba" },
-  { label: "Cifa", value: "cifa" },
-];
-
 export interface FiltrosType {
-  location: "centenario" | "catalinas" | "cordoba" | "cifa";
+  location: Estacion;
   integration: "hour" | "minute";
   startDate: Date | undefined;
   endDate: Date | undefined;
@@ -190,7 +184,7 @@ export default function Filtros({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {locationOptions.map((opt) => (
+              {OPCIONES_ESTACION.map((opt) => (
                 <SelectItem key={opt.value} value={opt.value}>
                   {opt.label}
                 </SelectItem>

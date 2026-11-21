@@ -1,5 +1,6 @@
 import { FILA, FILA_ENCABEZADO, TABLA, TD, TH } from "@/components/tabla-datos";
 import { ordenarSeries, SUFIJO_CARGADA, seriesDe } from "@/lib/datos/series";
+import { nombreSerie } from "@/lib/estaciones";
 import { encabezadoPeriodo, formatPeriodo, type Periodo } from "@/lib/periodo";
 
 interface TableProps {
@@ -26,15 +27,8 @@ export default function Table({ data, interval }: TableProps) {
     Object.keys(row).some((k) => k.endsWith(SUFIJO_CARGADA) && row[k]),
   );
 
-  const displayName = (location: string) => {
-    let label = location;
-    if (label === "catalinas" || label.startsWith("catalinas ")) {
-      label = label.replace(/^catalinas/, "La Boca");
-    } else {
-      label = label.charAt(0).toUpperCase() + label.slice(1);
-    }
-    return label.replace(/\bPM25\b/, "PM2.5");
-  };
+  const displayName = (location: string) =>
+    nombreSerie(location).replace(/\bPM25\b/, "PM2.5");
 
   return (
     <div className="overflow-x-auto p-2">

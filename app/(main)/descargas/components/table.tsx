@@ -1,6 +1,7 @@
 import { FILA, FILA_ENCABEZADO, TABLA, TD, TH } from "@/components/tabla-datos";
 import { TABLE_CONFIG } from "@/lib/descargas/config";
 import type { DataPoint } from "@/lib/descargas/models";
+import { nombreSerie } from "@/lib/estaciones";
 import { encabezadoPeriodo, formatPeriodo, type Periodo } from "@/lib/periodo";
 
 interface TableProps {
@@ -94,9 +95,7 @@ export default function Table({ data, interval }: TableProps) {
             </th>
             {locations.map((location) => (
               <th key={location} scope="col" className={TH}>
-                {location === "catalinas"
-                  ? "La Boca"
-                  : location.charAt(0).toUpperCase() + location.slice(1)}
+                {nombreSerie(location)}
               </th>
             ))}
           </tr>
