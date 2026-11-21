@@ -1,26 +1,26 @@
 import {
+  BadgeCheck,
   ChartLine,
-  DatabaseCheck,
-  DatabaseSearch,
   Download,
-  MapPinHouse,
+  FileChartColumn,
   MapPinned,
   Upload,
+  Wind,
 } from "lucide-react";
 import { CODIGOS_ESTACION, ESTACIONES, urlEstacion } from "@/lib/estaciones";
 
-// ICA = índice de calidad del aire. La página es, sobre todo, un mapa.
+// ICA = índice de calidad del aire.
 export const ica = [
   {
     title: "ICA",
     url: "/ica",
-    icon: MapPinned,
+    icon: Wind,
   },
 ];
 
 export const estaciones = {
   title: "Estaciones",
-  icon: MapPinHouse,
+  icon: MapPinned,
   url: "/estaciones",
   // Una por estación, en el orden de lib/estaciones.ts.
   items: CODIGOS_ESTACION.map((codigo) => ({
@@ -33,7 +33,7 @@ export const datos = [
   {
     title: "Explorar Datos",
     url: "/datos/contaminante",
-    icon: DatabaseSearch,
+    icon: ChartLine,
   },
 ];
 
@@ -41,7 +41,7 @@ export const reportes = [
   {
     title: "Reportes",
     url: "/reportes",
-    icon: ChartLine,
+    icon: FileChartColumn,
   },
 ];
 
@@ -59,7 +59,7 @@ export const validacion = [
   {
     title: "Validación",
     url: "/validacion",
-    icon: DatabaseCheck,
+    icon: BadgeCheck,
   },
 ];
 
