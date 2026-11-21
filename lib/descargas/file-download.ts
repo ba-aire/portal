@@ -17,34 +17,12 @@ import {
   formatInstante,
   formatPeriodo,
 } from "@/lib/periodo";
-import { COLUMNA_CARGADAS, DERIVED_COLUMNS, TABLE_CONFIG } from "./config";
-
-// Listas de columnas numéricas agrupadas por cantidad de decimales
-const ONE_DECIMAL_COLUMNS = new Set<string>([
-  // Ejemplo: variables meteorológicas, se pueden ajustar si es necesario
-  "dv",
-  "vv",
-  "temp",
-  "hr",
-  "pa",
-  "uv",
-  "lluvia",
-  "rs",
-]);
-
-// Resto de contaminantes con 2 decimales
-const TWO_DECIMAL_COLUMNS = new Set<string>([
-  "no",
-  "no2",
-  "nox",
-  "so2",
-  "o3",
-  "pm10",
-  "pm25",
-]);
-
-// CO con 3 decimales
-const THREE_DECIMAL_COLUMNS = new Set<string>(["co"]);
+import {
+  COLUMNA_CARGADAS,
+  DERIVED_COLUMNS,
+  decimalesDe,
+  TABLE_CONFIG,
+} from "./config";
 
 // Umbral de respaldo horario: 45 minutos válidos = 75% de la hora.
 const MIN_K_MINUTES_PER_HOUR = 45;
@@ -138,7 +116,7 @@ Object.entries(TABLE_CONFIG).forEach(([tableKey, config]) => {
 
 /**
  * Determina la integración: usa la recibida o la infiere de los campos presentes.
- * La consulta horaria trae series `_raw` y conteos `_k_status`; la minutal sólo `_status`.
+ * La consulta horaria trae series `_raw` y conteos `_k_count`; la minutal sólo `_status`.
  */
 function resolveIntegration(data: DataRow[], integration?: string): string {
   if (integration) return integration;
@@ -151,7 +129,7 @@ function resolveIntegration(data: DataRow[], integration?: string): string {
   });
 
   const fieldList = Array.from(fields);
-  if (fieldList.some((f) => f.endsWith("_k_status") || f.endsWith("_raw"))) {
+  if (fieldList.some((f) => f.endsWith("_k_count") || f.endsWith("_raw"))) {
     return "hour";
   }
   return fieldList.some((f) => f.endsWith("_status")) ? "minute" : "hour";
@@ -227,7 +205,7 @@ function getOrderedColumns(
     // la horaria trae los status observados y el conteo de minutos k; la
     // minutal sólo el status del minuto.
     const statusField = `${tableKey}_status`;
-    const kCountField = `${tableKey}_k_status`;
+    const kCountField = `${tableKey}_k_count`;
     known.add(statusField);
     known.add(kCountField);
 
@@ -387,7 +365,7 @@ export function downloadAsCSV(
           return String(value).toUpperCase();
         }
         if (typeof value === "number") {
-          return Number(value).toFixed(3);
+          return Number(value).toFixed(decimalesDe(col) ?? 3);
         }
         return String(value);
       }),
@@ -434,7 +412,7 @@ export function isLoadedHour(row: DataRow, column: string): boolean {
  * (lleva la letra H).
  */
 function hasLoadedStatus(row: DataRow, column: string): boolean {
-  if (!column.endsWith("_status") || column.endsWith("_k_status")) return false;
+  if (!column.endsWith("_status")) return false;
   const status = row[column];
   return typeof status === "string" && status.split(",").includes("H");
 }
@@ -448,7 +426,7 @@ export function hasLowKCoverage(row: DataRow, column: string): boolean {
   if (isLoadedHour(row, column)) return false;
   const tableKey = METRIC_TO_TABLE.get(column);
   if (!tableKey) return false;
-  const kCount = row[`${tableKey}_k_status`];
+  const kCount = row[`${tableKey}_k_count`];
   return (
     typeof kCount === "number" &&
     kCount < MIN_K_MINUTES_PER_HOUR &&
@@ -458,11 +436,11 @@ export function hasLowKCoverage(row: DataRow, column: string): boolean {
 
 /**
  * Indica si esa celda es un conteo de minutos k por debajo de 45 (75% de la
- * hora). Se evalúa sobre la propia columna *_k_status de la hoja crudos, que es
+ * hora). Se evalúa sobre la propia columna *_k_count de la hoja crudos, que es
  * donde se lee el respaldo de la hora antes de mirar el promedio validado.
  */
 function hasLowKCount(row: DataRow, column: string): boolean {
-  if (!column.endsWith("_k_status")) return false;
+  if (!column.endsWith("_k_count")) return false;
   const kCount = row[column];
   return typeof kCount === "number" && kCount < MIN_K_MINUTES_PER_HOUR;
 }
@@ -472,17 +450,16 @@ function groupKeyOf(col: string): string {
   const base = baseColumnName(col);
   const fromMetric = METRIC_TO_TABLE.get(base);
   if (fromMetric) return fromMetric;
-  if (col.endsWith("_k_status")) return col.slice(0, -"_k_status".length);
+  if (col.endsWith("_k_count")) return col.slice(0, -"_k_count".length);
   if (col.endsWith("_status")) return col.slice(0, -"_status".length);
   return "extra";
 }
 
-/** Formato numérico según la precisión del instrumento de la métrica. */
-function numFmtFor(baseCol: string): string | undefined {
-  if (THREE_DECIMAL_COLUMNS.has(baseCol)) return "0.000";
-  if (TWO_DECIMAL_COLUMNS.has(baseCol)) return "0.00";
-  if (ONE_DECIMAL_COLUMNS.has(baseCol)) return "0.0";
-  return undefined;
+/** Formato numérico de la celda: "0", "0.0", "0.00"… según `decimalesDe`. */
+function numFmtFor(columna: string): string | undefined {
+  const decimales = decimalesDe(columna);
+  if (decimales === undefined) return undefined;
+  return decimales === 0 ? "0" : `0.${"0".repeat(decimales)}`;
 }
 
 interface LegendLine {
@@ -588,17 +565,7 @@ function addDataToWorksheet(
           return String(value).toUpperCase();
         }
         if (typeof value === "number") {
-          // Determinar decimales según la columna
-          const baseCol = baseColumnName(col);
-          let decimals = 1;
-          if (THREE_DECIMAL_COLUMNS.has(baseCol)) {
-            decimals = 3;
-          } else if (TWO_DECIMAL_COLUMNS.has(baseCol)) {
-            decimals = 2;
-          } else if (ONE_DECIMAL_COLUMNS.has(baseCol)) {
-            decimals = 1;
-          }
-          return Number(value.toFixed(decimals));
+          return Number(value.toFixed(decimalesDe(col) ?? 1));
         }
         return String(value);
       }),
@@ -624,7 +591,7 @@ function addDataToWorksheet(
       const col = cellIndex >= 2 ? columns[cellIndex - 2] : null;
       if (col) {
         if (typeof row[col] === "number") {
-          const fmt = numFmtFor(baseColumnName(col));
+          const fmt = numFmtFor(col);
           if (fmt) {
             cell.numFmt = fmt;
           }
@@ -657,7 +624,7 @@ function addDataToWorksheet(
  * Crea dos hojas: "crudos" (promedio de todos los minutos más los status
  * observados) y "validados" (promedio sólo de minutos con status k). En la
  * integración horaria se resaltan las horas con menos de 45 minutos válidos:
- * en crudos sobre el conteo *_k_status y en validados sobre el promedio.
+ * en crudos sobre el conteo *_k_count y en validados sobre el promedio.
  * Cada hoja abre con notas: crudos explica qué contiene y el significado de
  * cada status; validados, qué contiene y qué indica el resaltado amarillo.
  *
@@ -692,7 +659,7 @@ export async function downloadAsExcel(
     ...(isHour
       ? [
           {
-            text: "Las columnas *_status listan los status observados en cada hora; las *_k_status cuentan los minutos en status K (sobre 60).",
+            text: "Las columnas *_status listan los status observados en cada hora; las *_k_count cuentan los minutos en status K (sobre 60).",
           },
           {
             text: `Conteo resaltado en amarillo: la hora tuvo menos de ${MIN_K_MINUTES_PER_HOUR} minutos en status K (75% de la hora), por lo que su promedio validado es menos representativo.`,

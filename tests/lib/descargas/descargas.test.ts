@@ -37,8 +37,8 @@ describe("DatosService.getDatosPorEstacion", () => {
   it("valida params, llama al repo y devuelve el resultado con count y meta", async () => {
     vi.mocked(fetchDatosPorEstacion).mockResolvedValue({
       data: [
-        { time: "2025-07-29T00:00:00.000Z", co: 1.234, co_k_status: 60 },
-        { time: "2025-07-29T01:00:00.000Z", co: 2.345, co_k_status: 58 },
+        { time: "2025-07-29T00:00:00.000Z", co: 1.234, co_k_count: 60 },
+        { time: "2025-07-29T01:00:00.000Z", co: 2.345, co_k_count: 58 },
       ],
       meta: {
         location: "centenario",

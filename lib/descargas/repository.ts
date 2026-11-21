@@ -6,7 +6,7 @@
  *
  *   por hora    `<p>` validado (gold.v_hourly: solo minutos K), `<p>_raw` crudo
  *               (silver value_raw: todos los minutos), `<grupo>_status` los status
- *               observados en la hora, `<grupo>_k_status` los minutos K.
+ *               observados en la hora, `<grupo>_k_count` los minutos K.
  *               `cargadas`: los parámetros cuya hora viene de una carga manual
  *               (V19), separados por coma; su grupo lleva la letra H en el status.
  *   por minuto  `<p>` el valor del minuto en silver, `<grupo>_status` su status.
@@ -67,7 +67,7 @@ const COLUMNAS_HORA = [
   // max() es el del grupo.
   ...GRUPOS.map(
     ([g, c]) =>
-      `max(n_minutes_valid) FILTER (WHERE parameter_code IN (${c.metrics.map(sqlLit).join(", ")})) AS ${sqlId(`${g}_k_status`)}`,
+      `max(n_minutes_valid) FILTER (WHERE parameter_code IN (${c.metrics.map(sqlLit).join(", ")})) AS ${sqlId(`${g}_k_count`)}`,
   ),
   // Los parámetros de la hora que vienen de una carga manual (V19).
   `string_agg(parameter_code, ',' ORDER BY parameter_code) FILTER (WHERE cargada) AS ${sqlId(COLUMNA_CARGADAS)}`,

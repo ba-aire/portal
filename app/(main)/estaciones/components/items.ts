@@ -36,7 +36,10 @@ type Contaminante = {
   nombre: string;
   nombreCompleto?: string;
   unidad: string;
-  /** Decimales con que se muestra el valor (siempre los mismos). */
+  /**
+   * Decimales con que se muestra el valor (siempre los mismos). PM10 y PM2.5
+   * sin decimales, como en el reporte mensual publicado (lib/reportes/config.ts).
+   */
   decimales: number;
 };
 
@@ -84,14 +87,14 @@ export const contaminantes: Contaminante[] = [
     nombre: "PM₁₀",
     nombreCompleto: "Material Particulado",
     unidad: "μg/m³",
-    decimales: 1,
+    decimales: 0,
   },
   {
     key: METRIC_KEYS.PM25_MEAN,
     nombre: "PM₂.₅",
     nombreCompleto: "Material Particulado 2.5",
     unidad: "μg/m³",
-    decimales: 1,
+    decimales: 0,
   },
   {
     key: METRIC_KEYS.O3_MEAN,
@@ -171,7 +174,7 @@ export const meteorologica: Meteorologica[] = [
     nombre: "UV",
     nombreCompleto: "Ultravioleta",
     unidad: "UV",
-    decimales: 1,
+    decimales: 0,
     icon: Sun,
   },
 ];

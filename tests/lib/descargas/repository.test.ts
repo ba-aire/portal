@@ -117,7 +117,7 @@ describe("fetchDatosPorEstacion", () => {
       await fetchDatosPorEstacion({ ...BASE, integration: "hour" });
       const { sql } = ultimaLlamada();
 
-      expect(sql).toContain(`AS "nox_k_status"`);
+      expect(sql).toContain(`AS "nox_k_count"`);
       expect(sql).toContain(`AS "meteo_status"`);
       expect(sql).toContain("string_agg(DISTINCT letra");
     });
@@ -148,7 +148,7 @@ describe("fetchDatosPorEstacion", () => {
           co_raw: "0.398",
           lluvia_raw: "2.3",
           dv_rumbo: "ENE",
-          co_k_status: 45,
+          co_k_count: 45,
           co_status: "A,K",
           pm10: null,
         },
@@ -165,7 +165,7 @@ describe("fetchDatosPorEstacion", () => {
           co_raw: 0.398,
           lluvia_raw: 2.3,
           dv_rumbo: "ENE",
-          co_k_status: 45,
+          co_k_count: 45,
           co_status: "A,K",
           pm10: null,
         },
