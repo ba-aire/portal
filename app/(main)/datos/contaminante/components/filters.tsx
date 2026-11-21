@@ -1,8 +1,8 @@
 "use client";
 
 import { ChevronDownIcon, Search } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import HourRangeSelect from "@/components/hour-range-select";
@@ -24,6 +24,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  filtrosAUrl,
+  filtrosDesdeUrl,
+  filtrosParaBuscar,
+} from "@/lib/datos/filtros-url";
 import { filtrosSchema } from "@/lib/datos/models";
 import { OPCIONES_ESTACION } from "@/lib/estaciones";
 import { HORA_DESDE_DEFECTO, HORA_HASTA_DEFECTO } from "@/lib/rango-minutal";
@@ -70,9 +75,24 @@ export default function Filtros({
 }: FiltrosProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
-  // Estado local para los selects
-  const [localFilters, setLocalFilters] = useState(currentFilters);
+  // Al abrir la página, los filtros salen de la URL (lo que escribe "Buscar
+  // Datos"), así una búsqueda compartida o recargada se reproduce. Lo inválido
+  // se ignora y queda el valor por defecto.
+  const [desdeUrl] = useState(() =>
+    filtrosDesdeUrl(searchParams, currentFilters),
+  );
+  const [localFilters, setLocalFilters] = useState(desdeUrl.filtros);
+
+  // Con el juego completo y válido en la URL, se busca sin esperar el clic.
+  // El ref evita la segunda búsqueda del doble efecto de StrictMode.
+  const buscoDesdeUrl = useRef(false);
+  useEffect(() => {
+    if (buscoDesdeUrl.current || !desdeUrl.busqueda) return;
+    buscoDesdeUrl.current = true;
+    onFetch?.(desdeUrl.busqueda);
+  }, [desdeUrl, onFetch]);
   // (no local inline errors; usamos toasts para notificar)
   // Estado para popup de date pickers
   const [openStartDate, setOpenStartDate] = useState(false);
@@ -153,47 +173,9 @@ export default function Filtros({
       return;
     }
 
-    // Enviar filtros ya validados
-    const startDate =
-      typeof localFilters.startDate === "string"
-        ? new Date(localFilters.startDate)
-        : localFilters.startDate;
-    const filtersToSend: FiltrosType = {
-      metrica: localFilters.metrica,
-      interval: localFilters.interval,
-      startDate,
-      // Minutales: un solo día, así que "hasta" es el mismo día.
-      endDate: esMinutal
-        ? startDate
-        : typeof localFilters.endDate === "string"
-          ? new Date(localFilters.endDate)
-          : localFilters.endDate,
-      locations: localFilters.locations,
-      ...(esMinutal && {
-        startHour: localFilters.startHour ?? HORA_DESDE_DEFECTO,
-        endHour: localFilters.endHour ?? HORA_HASTA_DEFECTO,
-      }),
-    };
+    const filtersToSend = filtrosParaBuscar(localFilters);
     if (onFetch) onFetch(filtersToSend);
-
-    // Actualizar URL solo con valores presentes
-    const params = new URLSearchParams();
-    params.set("metrica", localFilters.metrica);
-    params.set("interval", localFilters.interval ?? "");
-    if (filtersToSend.startDate) {
-      params.set("startDate", filtersToSend.startDate.toISOString());
-    }
-    if (filtersToSend.endDate) {
-      params.set("endDate", filtersToSend.endDate.toISOString());
-    }
-    if ((localFilters.locations || "").trim()) {
-      params.set("locations", localFilters.locations);
-    }
-    if (esMinutal) {
-      params.set("startHour", String(filtersToSend.startHour));
-      params.set("endHour", String(filtersToSend.endHour));
-    }
-    router.replace(`${pathname}?${params.toString()}`);
+    router.replace(`${pathname}?${filtrosAUrl(filtersToSend).toString()}`);
   };
 
   return (

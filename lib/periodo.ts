@@ -40,6 +40,30 @@ export function formatInstante(fecha: Date): string {
   return `${FORMATO_FECHA.format(fecha)}, ${FORMATO_HORA.format(fecha)}`;
 }
 
+const FORMATO_DIA_MES = new Intl.DateTimeFormat("es-AR", {
+  month: "2-digit",
+  day: "2-digit",
+  timeZone: TZ,
+});
+
+/**
+ * Rótulo corto para el eje de tiempo de los gráficos: "21/11, 08:00", en 24 hs
+ * como la tabla. Si `iso` no es una fecha, lo devuelve tal cual.
+ */
+export function formatInstanteCorto(iso: string): string {
+  const fecha = new Date(iso);
+  if (Number.isNaN(fecha.getTime())) return iso;
+  return `${FORMATO_DIA_MES.format(fecha)}, ${FORMATO_HORA.format(fecha)}`;
+}
+
+/**
+ * Número para mostrar: coma decimal, punto de miles ("1.234,5"). Hasta
+ * `decimales` cifras, sin ceros de relleno.
+ */
+export function formatNumero(valor: number, decimales = 3): string {
+  return valor.toLocaleString("es-AR", { maximumFractionDigits: decimales });
+}
+
 /**
  * El período que rotula `iso`, en hora argentina:
  * minuto "15/01/2026, 11:30", hora "15/01/2026, 11:00 a 12:00 hs", móvil
