@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-session";
+import { CSS_PAGINA } from "@/lib/reportes/html/base";
 import { ReporteClasico } from "@/lib/reportes/html/clasico";
 import { ReporteNuevo } from "@/lib/reportes/html/nuevo";
 import { tokenValido } from "@/lib/reportes/impresion";
@@ -50,10 +51,20 @@ export default async function ImprimirReporteMensual({ searchParams }: Props) {
     Boolean(await getSession());
   if (!autorizado) redirect("/login");
 
-  const reporte = await getReporteMensual(estacion, contaminante, mes);
-  return plantilla === "nuevo" ? (
-    <ReporteNuevo reporte={reporte} />
-  ) : (
-    <ReporteClasico reporte={reporte} />
+  const reporte = await getReporteMensual(
+    estacion,
+    contaminante,
+    mes,
+    plantilla,
+  );
+  return (
+    <>
+      <style>{CSS_PAGINA}</style>
+      {plantilla === "nuevo" ? (
+        <ReporteNuevo reporte={reporte} />
+      ) : (
+        <ReporteClasico reporte={reporte} />
+      )}
+    </>
   );
 }

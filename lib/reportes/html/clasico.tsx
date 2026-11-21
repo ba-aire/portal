@@ -14,21 +14,23 @@
  */
 
 import type { CSSProperties } from "react";
-import { ENCABEZADO_INSTITUCIONAL, NOTA_EPA, PLANTILLAS } from "../config";
+import { ENCABEZADO_INSTITUCIONAL, NOTA_EPA } from "../config";
 import { SKYLINE, TEXTURA_RECUADRO } from "../fondos";
 import {
+  esRes68,
   etiquetaHora,
   GRUPOS_PERFIL,
   menorQueLD,
   NOTA_PERFIL,
   nombreVentana,
   ORDEN_HORAS_PERFIL,
+  rotuloLimite,
   textoLimite,
   unidadImpresa,
 } from "../formato";
 import type { LimiteGrafico, SerieGrafico } from "../graficos";
 import type { Dia, Excedencia, ReporteMensual } from "../models";
-import type { TablaArmada } from "../tabla";
+import type { EstiloCelda, TablaArmada } from "../tabla";
 import {
   type Encabezados,
   tablaDias,
@@ -63,7 +65,16 @@ function geometria(v: Vista) {
     ancho,
     dia,
     rotuloEstadisticos: ancho - 5 * P * valor,
-    fuente: P > 1 ? 6.8 : 7.8,
+    // Los tamaños del PDF que exporta hoy la planilla (CO de Centenario,
+    // septiembre de 2026, medidos con PyMuPDF): valores en 8,3 pt, días y
+    // encabezados de columna en 9,2, "Promedio 24 Hs" en 7,3 y el mes en 5,5;
+    // una fila cada 9,6 pt. Con tres parámetros (columnas de 24 pt) todo baja
+    // en la misma proporción.
+    fuente: P > 1 ? 7 : 8.3,
+    fuenteDia: P > 1 ? 7.8 : 9.2,
+    fuenteEncabezado: P > 1 ? 7.8 : 9.2,
+    fuenteEncabezadoChico: P > 1 ? 6.2 : 7.3,
+    alturaLinea: P > 1 ? 7.2 : 8.25,
     // Alto de cada fila del encabezado de las tablas: con el mes y el
     // promedio de 24 h ocupando dos filas, "Promedio 24 Hs" entra en dos
     // renglones.
@@ -83,15 +94,99 @@ const COLORES: Encabezados = {
   perfil: "#e6d6ef",
 };
 
-/** Una tabla con el contorno y los separadores gruesos de la planilla. */
-function TablaPlanilla({ t, fuente }: { t: TablaArmada; fuente: number }) {
-  return <Tabla t={t} fuente={fuente} bordeExterior={GRUESO} grueso={GRUESO} />;
+/**
+ * Una tabla con las líneas gruesas de la planilla: el contorno, la base del
+ * encabezado, las que separan los grupos de columnas (días, promedio diario,
+ * bloques de 8 h, horas) y, con `filasEnCaja`, las celdas del encabezado. Lo
+ * demás (entre días, entre valores, la fila NO / NO2 / NOx) va fino: es lo que
+ * se lee, y en grueso la tabla se vuelve una grilla negra.
+ */
+function TablaPlanilla({
+  t,
+  fuente,
+  alturaLinea,
+  filasEnCaja,
+}: {
+  t: TablaArmada;
+  fuente: number;
+  alturaLinea?: number;
+  filasEnCaja?: number[];
+}) {
+  return (
+    <Tabla
+      t={t}
+      fuente={fuente}
+      bordeExterior={GRUESO}
+      grueso={GRUESO}
+      alturaLinea={alturaLinea}
+      filasEnCaja={filasEnCaja}
+    />
+  );
 }
 
-// Los tamaños de la planilla (medidos en el PDF publicado): las líneas
-// institucionales en 11,5, 10, 9, 7,5, 9,5 y 9,5 pt; el título de la red en
-// 11,5 y el contaminante en 12,5, magenta.
-const TAMANOS_ENCABEZADO = [11.5, 10, 9, 7.5, 9.5, 9.5];
+/**
+ * Con varios parámetros (NOx), también en grueso entre los bloques de 8 h y
+ * entre el máximo y el mínimo: cada bloque son tres columnas iguales (NO, NO2,
+ * NOx) y sin la línea no se ve dónde termina uno. Con uno solo cada bloque es
+ * una columna y alcanza la línea fina.
+ */
+function conBloques(t: TablaArmada, v: Vista, desde: number[]): TablaArmada {
+  if (!v.varios) return t;
+  return { ...t, gruesas: [...t.gruesas, ...desde] };
+}
+
+/**
+ * Los tamaños de letra de la planilla sobre una tabla ya armada (tablas.ts es
+ * común a las dos plantillas): `encabezado` para las filas de encabezado,
+ * `celdas` para alguna celda puntual del encabezado ("fila,celda") y `rotulo`
+ * para las columnas de rótulos de las filas de datos (los días, los
+ * estadísticos con "Percentiles" y 95/98, las horas). Las filas de datos son
+ * las últimas `datos`.
+ */
+function conTamanos(
+  t: TablaArmada,
+  datos: number,
+  o: {
+    encabezado: number;
+    celdas?: Record<string, number>;
+    rotulo?: EstiloCelda;
+  },
+): TablaArmada {
+  const enc = t.filas.length - datos;
+  return {
+    ...t,
+    filas: t.filas.map((f, i) => {
+      if (i >= enc) {
+        if (!o.rotulo) return f;
+        const rotulos = t.columnasRotulo ?? 1;
+        let col = 0;
+        return {
+          ...f,
+          estilosCelda: f.celdas.map((_, j) => {
+            const desde = col;
+            col += f.spans?.[j] ?? 1;
+            const propio = f.estilosCelda?.[j];
+            return desde < rotulos ? { ...propio, ...o.rotulo } : propio;
+          }),
+        };
+      }
+      return {
+        ...f,
+        estilo: { ...f.estilo, fontSize: o.encabezado },
+        estilosCelda: f.celdas.map((_, j) => {
+          const tam = o.celdas?.[`${i},${j}`];
+          const propio = f.estilosCelda?.[j];
+          return tam ? { ...propio, fontSize: tam } : propio;
+        }),
+      };
+    }),
+  };
+}
+
+// Los tamaños del PDF que exporta hoy la planilla: las líneas institucionales
+// en 10,1, 9,2, 8,3, 7,3, 9,2 y 9,2 pt; el título de la red y el contaminante
+// (magenta) en 11; la estación y el mes en 9,2.
+const TAMANOS_ENCABEZADO = [10.1, 9.2, 8.3, 7.3, 9.2, 9.2];
 
 function Encabezado({ v }: { v: Vista }) {
   const linea = (fontSize: number, extra: CSSProperties = {}) => ({
@@ -108,12 +203,12 @@ function Encabezado({ v }: { v: Vista }) {
           {l}
         </div>
       ))}
-      <div style={linea(11.5, { marginTop: pt(6) })}>
+      <div style={linea(11, { marginTop: pt(6) })}>
         Monitoreo Atmosférico Automático - Red de Estaciones EPA (*)
       </div>
-      <div style={linea(12.5, { color: MAGENTA })}>{v.cfg.titulo}</div>
-      <div style={linea(10)}>{v.estacion.titulo}</div>
-      <div style={linea(10)}>{v.mesTitulo}</div>
+      <div style={linea(11, { color: MAGENTA })}>{v.cfg.titulo}</div>
+      <div style={linea(9.2)}>{v.estacion.titulo}</div>
+      <div style={linea(9.2)}>{v.mesTitulo}</div>
     </header>
   );
 }
@@ -157,21 +252,37 @@ function NotasDeTabla({ v }: { v: Vista }) {
   );
 }
 
+/**
+ * La caja de excedencias. Con una sola norma (la Res. 68), todas las columnas
+ * llevan (*1) y abajo van sus límites. Con más de una (ACUMAR: Ley 20284 y Res.
+ * 68), cada columna lleva su número, (*1), (*2)..., en el orden en que data las
+ * devuelve, y cada límite el suyo, como el reporte que recibe ACUMAR.
+ */
 function Excedencias({ v }: { v: Vista }) {
   const exc = v.excedencias();
   if (exc.length === 0) return null;
-  const soloDias = exc.every((e) => e.window_code === "24h");
-  const titulo = soloDias
-    ? "Cantidad de días que excedieron la norma de Calidad de Aire (*1)"
-    : "Cantidad de períodos que excedieron la norma de Calidad de Aire (*1)";
-  const rotulo = (e: Excedencia) =>
-    `${nombreVentana(e)}${v.varios ? ` ${v.nombre(e.parameter_code)}` : ""} (*1)`;
+  const variasNormas = new Set(exc.map((e) => e.norma)).size > 1;
+  const nota = (i: number) => `(*${variasNormas ? i + 1 : 1})`;
+  const notas = variasNormas
+    ? exc
+        .map((_, i) => nota(i))
+        .join(", ")
+        .replace(/, ([^,]+)$/, " y $1")
+    : nota(0);
+  const periodos = exc.every((e) => e.window_code === "24h")
+    ? "días"
+    : exc.every((e) => e.window_code === "1h")
+      ? "períodos de 1 hora"
+      : "períodos";
+  const titulo = `Cantidad de ${periodos} que excedieron la norma de Calidad de Aire ${notas}`;
+  const rotulo = (e: Excedencia, i: number) =>
+    `${nombreVentana(e)}${v.varios ? ` ${v.nombre(e.parameter_code)}` : ""} ${nota(i)}`;
   const t: TablaArmada = {
     columnas: exc.map(() => ({ ancho: 100 })),
     filas: [
       {
         celdas: exc.map(rotulo),
-        estilo: { fontWeight: 700 },
+        estilo: { fontWeight: 700, fontSize: 9.2 },
         estilosCelda: exc.map((e) => ({
           backgroundColor:
             e.window_code === "1h" ? COLORES.promedio1 : COLORES.promedio8,
@@ -186,7 +297,7 @@ function Excedencias({ v }: { v: Vista }) {
     <div style={{ marginTop: pt(10), breakInside: "avoid" }}>
       <div
         style={{
-          fontSize: pt(8),
+          fontSize: pt(7.3),
           fontWeight: 700,
           textDecoration: "underline",
           marginBottom: pt(3),
@@ -198,19 +309,20 @@ function Excedencias({ v }: { v: Vista }) {
       <div style={{ display: "flex", justifyContent: "center" }}>
         <Tabla
           t={t}
-          fuente={8}
+          fuente={8.3}
           bordeExterior={GRUESO}
           grueso={GRUESO}
           padding="1pt 2pt"
         />
       </div>
-      <div style={{ fontSize: pt(7), marginTop: pt(4) }}>
+      <div style={{ fontSize: pt(7.3), marginTop: pt(4) }}>
         <div style={{ fontWeight: 700, textDecoration: "underline" }}>
-          (*1)Las excedencias se evalúan de acuerdo a los siguientes Límites
-          Admisibles:
+          {variasNormas ? "" : nota(0)}Las excedencias se evalúan de acuerdo a
+          los siguientes Límites Admisibles:
         </div>
-        {exc.map((e) => (
-          <div key={`${e.parameter_code}${e.window_code}`}>
+        {exc.map((e, i) => (
+          <div key={`${e.norma}${e.parameter_code}${e.window_code}`}>
+            {variasNormas ? nota(i) : ""}
             {textoLimite(e, v.nombre(e.parameter_code), v.varios)}
           </div>
         ))}
@@ -227,7 +339,7 @@ function CajaGrafico({
   series,
   escala,
   paso,
-  limite,
+  limites = [],
   etiquetasX,
   perfil = false,
 }: {
@@ -236,7 +348,7 @@ function CajaGrafico({
   series: SerieGrafico[];
   escala: number;
   paso: number;
-  limite?: LimiteGrafico;
+  limites?: LimiteGrafico[];
   etiquetasX: string[];
   /**
    * El perfil horario de la planilla es distinto: recuadro blanco, área gris
@@ -270,15 +382,15 @@ function CajaGrafico({
       <div
         style={{ textAlign: "center", fontWeight: 700, marginBottom: pt(4) }}
       >
-        <div style={linea(11)}>Gobierno de la Ciudad de Buenos Aires</div>
-        <div style={linea(9)}>Agencia de Protección Ambiental</div>
-        <div style={linea(8.5)}>Dirección General de Control Ambiental</div>
-        <div style={linea(8)}>
+        <div style={linea(11.9)}>Gobierno de la Ciudad de Buenos Aires</div>
+        <div style={linea(10.2)}>Agencia de Protección Ambiental</div>
+        <div style={linea(9.2)}>Dirección General de Control Ambiental</div>
+        <div style={linea(8.3)}>
           Gerencia Operativa de Determinaciones Ambientales y Laboratorio
         </div>
         <div
           style={{
-            ...linea(perfil ? 11 : 10.5),
+            ...linea(11),
             color: AZUL_TITULO,
             textDecoration: "underline",
             ...(perfil ? { fontFamily: TIMES, fontWeight: 400 } : {}),
@@ -287,7 +399,7 @@ function CajaGrafico({
           {`Monitoreo Atmosférico - ${v.cfg.nombre}`}
         </div>
         {perfil && (
-          <div style={{ ...linea(10.5), fontFamily: TIMES, fontWeight: 400 }}>
+          <div style={{ ...linea(11.5), fontFamily: TIMES, fontWeight: 400 }}>
             {subtitulo}
           </div>
         )}
@@ -299,7 +411,7 @@ function CajaGrafico({
         series={series}
         escala={escala}
         paso={paso}
-        limite={limite}
+        limites={limites}
         imagenFondo={perfil ? undefined : skyline}
         fondo="#c0c0c0"
         grilla={GRILLA}
@@ -319,8 +431,8 @@ function CajaGrafico({
           <>
             <div style={{ width: pt(160) }} />
             <div style={{ flex: 1, textAlign: "center", fontWeight: 700 }}>
-              <div style={linea(9)}>{v.mesTitulo}</div>
-              <div style={{ ...linea(8.5), color: MAGENTA }}>
+              <div style={linea(9.2)}>{v.mesTitulo}</div>
+              <div style={{ ...linea(9.2), color: MAGENTA }}>
                 {v.estacion.rotulo}
               </div>
             </div>
@@ -329,7 +441,7 @@ function CajaGrafico({
           <>
             <div
               style={{
-                ...linea(8.5),
+                ...linea(9.2),
                 fontWeight: 700,
                 color: MAGENTA,
                 width: pt(140),
@@ -339,7 +451,7 @@ function CajaGrafico({
             </div>
             <div
               style={{
-                ...linea(9),
+                ...linea(9.2),
                 flex: 1,
                 textAlign: "center",
                 fontWeight: 700,
@@ -361,15 +473,11 @@ function CajaGrafico({
                 grosor: s.grosor,
                 marcador: !perfil,
               })),
-              ...(limite
-                ? [
-                    {
-                      nombre: limite.etiqueta,
-                      color: limite.color ?? "#e00000",
-                      grosor: 2.5,
-                    },
-                  ]
-                : []),
+              ...limites.map((l) => ({
+                nombre: l.etiqueta,
+                color: l.color ?? "#e00000",
+                grosor: 2.5,
+              })),
             ]}
           />
         </div>
@@ -378,16 +486,24 @@ function CajaGrafico({
   );
 }
 
-function limiteGrafico(
+/**
+ * Las líneas de los límites de una ventana, una por norma. Con varios
+ * parámetros el estándar de la Res. 68 va en azul, como la planilla del NOx
+ * (el rojo queda para el nivel de la Ley 20284 en la de ACUMAR); con uno, en
+ * rojo.
+ */
+function limitesGrafico(
   v: Vista,
   ventana: "1h" | "8h" | "24h",
-): LimiteGrafico | undefined {
-  const e = v.limiteDe(ventana);
-  if (!e) return undefined;
-  return {
-    valor: e.limite,
-    etiqueta: `Valor límite admisible: ${textoLimite(e, v.nombre(e.parameter_code), v.varios).replace(/^[^:]+: /, "")}`,
-  };
+): LimiteGrafico[] {
+  return v
+    .excedencias()
+    .filter((e) => e.window_code === ventana)
+    .map((e) => ({
+      valor: e.limite,
+      etiqueta: rotuloLimite(e, v.nombre(e.parameter_code), v.varios),
+      color: v.varios && esRes68(e) ? AZUL_TITULO : "#e00000",
+    }));
 }
 
 function seriesPorDia(v: Vista, campo: keyof Dia, sufijo = ""): SerieGrafico[] {
@@ -408,8 +524,10 @@ const paginaDeGraficos: CSSProperties = { padding: `${pt(30)} ${pt(30)}` };
 export function ReporteClasico({ reporte }: { reporte: ReporteMensual }) {
   const v = vista(reporte);
   const g = geometria(v);
-  const pl = PLANTILLAS.clasico;
-  const pie = `Versión clásica v${pl.version} · Generado el ${v.generado} desde SIRCA`;
+  const P = v.params.length;
+  // La planilla no tenía pie: solo queda el número de página. La versión de
+  // la plantilla sigue en PLANTILLAS (config.ts), pero no se imprime.
+  const pie = "";
   const diasX = v.dias(v.params[0]).map((d) => String(d.dia));
   const bloques: [keyof Dia, string, string][] = [
     ["bloque_0_8", "de 0 a 8 hs", "#5ea500"],
@@ -455,7 +573,7 @@ export function ReporteClasico({ reporte }: { reporte: ReporteMensual }) {
       )}
       escala={v.cfg.escalas.diario}
       paso={v.cfg.pasos.diario}
-      limite={limiteGrafico(v, "24h")}
+      limites={limitesGrafico(v, "24h")}
       etiquetasX={diasX}
     />,
     ...bloques.map(([campo, rotulo, color]) => (
@@ -468,7 +586,7 @@ export function ReporteClasico({ reporte }: { reporte: ReporteMensual }) {
         )}
         escala={v.cfg.escalas.bloques}
         paso={v.cfg.pasos.bloques}
-        limite={limiteGrafico(v, "8h")}
+        limites={limitesGrafico(v, "8h")}
         etiquetasX={diasX}
       />
     )),
@@ -483,7 +601,7 @@ export function ReporteClasico({ reporte }: { reporte: ReporteMensual }) {
       series={maxMin}
       escala={v.cfg.escalas.horario}
       paso={v.cfg.pasos.horario}
-      limite={limiteGrafico(v, "1h")}
+      limites={limitesGrafico(v, "1h")}
       etiquetasX={diasX}
     />,
   ];
@@ -506,12 +624,27 @@ export function ReporteClasico({ reporte }: { reporte: ReporteMensual }) {
             excedencias arrancan en su borde izquierdo, como en la planilla. */}
         <div style={{ width: pt(g.ancho), margin: "0 auto" }}>
           <TablaPlanilla
-            t={tablaDias(v, g.ancho, COLORES, g.dia, g.altoEncabezado)}
+            t={conTamanos(
+              conBloques(
+                tablaDias(v, g.ancho, COLORES, g.dia, g.altoEncabezado),
+                v,
+                [1 + 2 * P, 1 + 3 * P, 1 + 5 * P],
+              ),
+              v.dias(v.params[0]).length,
+              {
+                encabezado: g.fuenteEncabezado,
+                // El mes en 5,5 y "Promedio 24 Hs" en chico, como la planilla.
+                celdas: { "0,0": 5.5, "0,1": g.fuenteEncabezadoChico },
+                rotulo: { fontSize: g.fuenteDia },
+              },
+            )}
             fuente={g.fuente}
+            alturaLinea={g.alturaLinea}
+            filasEnCaja={[0, 1]}
           />
           <div
             style={{
-              fontSize: pt(7.5),
+              fontSize: pt(8.3),
               fontWeight: 700,
               textAlign: "center",
               borderLeft: `${pt(GRUESO)} solid #000`,
@@ -523,14 +656,39 @@ export function ReporteClasico({ reporte }: { reporte: ReporteMensual }) {
             PARÁMETROS ESTADÍSTICOS
           </div>
           <TablaPlanilla
-            t={tablaEstadisticos(
-              v,
-              g.ancho,
-              COLORES,
-              g.rotuloEstadisticos,
-              g.altoEncabezado,
+            t={conTamanos(
+              conBloques(
+                tablaEstadisticos(
+                  v,
+                  g.ancho,
+                  COLORES,
+                  g.rotuloEstadisticos,
+                  g.altoEncabezado,
+                  true,
+                ),
+                v,
+                [2 + 2 * P, 2 + 3 * P],
+              ),
+              8,
+              {
+                encabezado: g.fuenteEncabezado,
+                // El mes en 8,3; "Promedio 24 Hs" y "Promedios 1 Hora" en chico.
+                celdas: {
+                  "0,0": g.fuente,
+                  "0,1": g.fuenteEncabezadoChico,
+                  "0,3": g.fuenteEncabezadoChico,
+                },
+                // Los rótulos (Cantidad de Datos, Mínimo...) en 7,3, sin
+                // negrita y centrados.
+                rotulo: {
+                  fontSize: g.fuenteEncabezadoChico,
+                  fontWeight: 400,
+                  textAlign: "center",
+                },
+              },
             )}
             fuente={g.fuente}
+            filasEnCaja={[0, 1]}
           />
           <NotasDeTabla v={v} />
           <Excedencias v={v} />
@@ -557,7 +715,7 @@ export function ReporteClasico({ reporte }: { reporte: ReporteMensual }) {
         <div
           style={{
             marginLeft: pt(perfil.columnas[0].ancho),
-            fontSize: pt(7.5),
+            fontSize: pt(6.5),
             fontWeight: 700,
             textAlign: "center",
             color: "#ffffff",
@@ -569,7 +727,15 @@ export function ReporteClasico({ reporte }: { reporte: ReporteMensual }) {
         >
           PROMEDIOS HORARIOS
         </div>
-        <TablaPlanilla t={perfil} fuente={v.varios ? 5.5 : 6.5} />
+        <TablaPlanilla
+          t={conTamanos(perfil, 24, {
+            // Como la planilla: los títulos y las horas en 5,5, los valores
+            // en 6,5.
+            encabezado: v.varios ? 4.8 : 5.5,
+            rotulo: { fontSize: v.varios ? 4.8 : 5.5 },
+          })}
+          fuente={v.varios ? 5.5 : 6.5}
+        />
         <div
           style={{
             fontSize: pt(6.5),

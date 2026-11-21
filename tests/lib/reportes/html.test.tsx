@@ -12,6 +12,7 @@ import {
   maximoDelEje,
   pasoDelEje,
 } from "@/lib/reportes/graficos";
+import { CSS_PAGINA } from "@/lib/reportes/html/base";
 import { ReporteClasico } from "@/lib/reportes/html/clasico";
 import { ReporteNuevo } from "@/lib/reportes/html/nuevo";
 import type { ReporteMensual } from "@/lib/reportes/models";
@@ -73,14 +74,76 @@ describe.each(["clasico", "nuevo"] as const)("plantilla %s", (plantilla) => {
     expect(cuenta(s, 'class="hoja"')).toBe(n);
     expect(s).toContain(`Página 1 de ${n}`);
     expect(s).toContain(`Página ${n} de ${n}`);
-    expect(s).toContain("@page");
+    // El CSS de impresión es de la página, no del reporte: la vista previa de
+    // /reportes no puede tocar el html del portal.
+    expect(s).not.toContain("@page");
+    expect(s).not.toContain("overflow: auto !important");
     expect(cuenta(s, "<svg")).toBeGreaterThan(0);
     expect(s).not.toContain("NaN");
     expect(s).not.toContain("undefined");
   });
 
-  it("lleva la versión de la plantilla en el pie", () => {
-    expect(render(reporteCO())).toMatch(/v2026-\d\d-\d\d/);
+  it("la versión va en el pie solo en la nueva (la planilla no tenía pie)", () => {
+    // La versión (v1.5) y la fecha del diseño, en el pie de cada hoja.
+    const conVersion = /v\d+\.\d+ \(2026-\d\d-\d\d\)/;
+    if (plantilla === "nuevo") expect(render(reporteCO())).toMatch(conVersion);
+    else expect(render(reporteCO())).not.toMatch(conVersion);
+  });
+});
+
+describe("plantilla clásica", () => {
+  it("los percentiles van como la planilla: una celda con 95 y 98 al lado", () => {
+    const s = html(<ReporteClasico reporte={coSeptiembre()} />);
+    expect(s).toMatch(/rowSpan="2"[^>]*>Percentiles</);
+    expect(s).toContain(">95</td>");
+    expect(s).toContain(">98</td>");
+    expect(s).not.toContain("Percentil 95");
+  });
+
+  it("en el NOx, el estándar del gráfico horario dice que es del NO2", () => {
+    const s = html(<ReporteClasico reporte={noxSeptiembre()} />);
+    expect(s).toContain(
+      "Estándar de Calidad de Aire para NO2 en 1 hora: 106 PPB (Res. 68/APRA/21, 3ra etapa)",
+    );
+  });
+
+  it("con la Ley 20284 (ACUMAR), cada límite con su número y su línea", () => {
+    const r = noxSeptiembre();
+    r.excedencias = [
+      {
+        ...r.excedencias[0],
+        parameter_code: "nox",
+        norma: "Ley 20284",
+        limite: 450,
+        n_excedencias: 2,
+      },
+      ...r.excedencias,
+    ];
+    const s = html(<ReporteClasico reporte={r} />);
+    expect(s).toContain(
+      "Cantidad de períodos de 1 hora que excedieron la norma de Calidad de Aire (*1) y (*2)",
+    );
+    expect(s).toContain("Promedios 1 hora NOx (*1)");
+    expect(s).toContain("Promedios 1 hora NO2 (*2)");
+    expect(s).toContain(
+      "(*1)Nivel admisible para NOx promedio en 1 hora (expresado como NO2): 450 PPB (Ley Nacional 20284)",
+    );
+    expect(s).toContain(
+      "(*2)Promedios 1 hora de NO2: 106 PPB (Res. 68/APRA/21, 3ra etapa)",
+    );
+    // Las dos líneas en el gráfico horario: la de la ley en rojo, la de la
+    // Res. 68 en azul.
+    expect(s).toMatch(/<line[^>]*stroke="#e00000"/);
+    expect(s).toMatch(/<line[^>]*stroke="#1a2fd6"/);
+  });
+});
+
+describe("CSS de la página de impresión", () => {
+  // CSS_PAGINA queda antes que el CSS_HOJAS de la plantilla: con `.hoja` a
+  // secas ganaba el margen de pantalla y cada A4 desbordaba a dos páginas.
+  it("las reglas de impresión le ganan al margen de pantalla de las hojas", () => {
+    expect(CSS_PAGINA).toMatch(/body \.hoja \{ margin: 0;/);
+    expect(CSS_PAGINA).not.toMatch(/^\s*\.hoja \{/m);
   });
 });
 
@@ -106,6 +169,12 @@ describe("plantilla nueva", () => {
     expect(s).not.toContain("fuera de escala: el máximo graficado");
   });
 
+  it("dice contra qué etapa de la Res. 68 se evaluó el mes", () => {
+    const s = html(<ReporteNuevo reporte={coSeptiembre()} />);
+    expect(s).toContain("Excedencias · Res. 68/APRA/21 3ra etapa");
+    expect(s).toContain("(para este mes, la 3ra etapa)");
+  });
+
   it("sin límite para el contaminante lo dice", () => {
     const s = html(<ReporteNuevo reporte={sinDatos()} />);
     expect(s).toContain("no fija un valor límite");
@@ -127,7 +196,7 @@ describe("eje Y", () => {
     ];
     expect(maximoDelEje(10, s(0.4))).toBe(10);
     expect(maximoDelEje(10, s(23))).toBe(25);
-    expect(maximoDelEje(10, s(1), { valor: 26, etiqueta: "" })).toBe(30);
+    expect(maximoDelEje(10, s(1), [{ valor: 26, etiqueta: "" }])).toBe(30);
     expect(maximoDelEje(null, s(0))).toBe(1);
   });
 });

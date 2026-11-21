@@ -51,6 +51,8 @@ function filaParametros(
   grupos: number,
   fondo: string[],
   alto?: number,
+  /** Cuántas columnas ocupa la celda tapada de la izquierda. */
+  primera = 1,
 ): FilaTabla[] {
   if (!v.varios) return [];
   const nombres = Array.from({ length: grupos }, () =>
@@ -60,6 +62,7 @@ function filaParametros(
     {
       // La primera columna la ocupa la celda de arriba (el mes, "HORARIO").
       celdas: [CUBIERTA, ...nombres],
+      spans: [primera, ...nombres.map(() => 1)],
       alto,
       estilo: { fontSize: 5.5, ...negrita },
       estilosCelda: [
@@ -168,9 +171,28 @@ export function tablaEstadisticos(
   c: Encabezados,
   rotulo = 92,
   altoEncabezado = 12,
+  /**
+   * Como la planilla: una celda "Percentiles" que ocupa dos filas, con 95 y 98
+   * al lado. Para eso la columna de los rótulos se parte en dos, y los demás
+   * rótulos ocupan las dos.
+   */
+  percentilesAgrupados = false,
 ) {
   const P = v.params.length;
+  const R = percentilesAgrupados ? 2 : 1; // columnas de rótulos
   const columnas = repartir(ancho, rotulo, 5 * P);
+  if (percentilesAgrupados) {
+    const sub = Math.round(rotulo * 0.24);
+    columnas.splice(
+      0,
+      1,
+      {
+        ancho: rotulo - sub,
+        alinear: "center",
+      },
+      { ancho: sub, alinear: "center" },
+    );
+  }
   const fondos = [
     c.rotulo,
     c.promedio24,
@@ -187,7 +209,7 @@ export function tablaEstadisticos(
         "PROMEDIO 8 HS",
         "Promedios 1 Hora",
       ],
-      spans: [1, P, 3 * P, P],
+      spans: [R, P, 3 * P, P],
       // El mes, el promedio de 24 h y las horas ocupan dos filas; solo los
       // bloques de 8 h se abren en 0 a 8, 8 a 16 y 16 a 24.
       filasQueOcupa: [v.varios ? 3 : 2, 2, 1, 2],
@@ -202,12 +224,12 @@ export function tablaEstadisticos(
     },
     {
       celdas: [CUBIERTA, CUBIERTA, "0 a 8", "8 a 16", "16 a 24", CUBIERTA],
-      spans: [1, P, P, P, P, P],
+      spans: [R, P, P, P, P, P],
       alto: altoEncabezado,
       estilo: negrita,
       estilosCelda: fondos.map((f) => ({ backgroundColor: f })),
     },
-    ...filaParametros(v, 5, fondos, altoEncabezado),
+    ...filaParametros(v, 5, fondos, altoEncabezado, R),
   ];
 
   const dec = v.cfg.decimales;
@@ -215,13 +237,20 @@ export function tablaEstadisticos(
   // mediana) llevan "<LD" en la columna de las horas; la media y el desvío no
   // son lecturas del equipo y salen como número.
   const fila = (
-    rotulo: string,
+    rotulo: string | [string, string],
     valor: (e: Estadistico) => number | null,
     esLectura: boolean,
     entero = false,
   ): FilaTabla => ({
+    // Un rótulo partido (["Percentiles", "95"]) va en las dos columnas de
+    // rótulos; uno solo, en las dos juntas.
+    ...(R === 2
+      ? Array.isArray(rotulo)
+        ? {}
+        : { spans: [2, ...Array<number>(5 * P).fill(1)] }
+      : {}),
     celdas: [
-      rotulo,
+      ...(Array.isArray(rotulo) ? rotulo : [rotulo]),
       ...SERIES.flatMap((s) =>
         v.params.map((p) => {
           const e = v.estadistico(p, s);
@@ -233,14 +262,28 @@ export function tablaEstadisticos(
         }),
       ),
     ],
-    estilosCelda: [{ backgroundColor: c.rotulo, textAlign: "left" }],
+    estilosCelda: [
+      { backgroundColor: c.rotulo, textAlign: "left" },
+      ...(Array.isArray(rotulo) ? [{ backgroundColor: c.rotulo }] : []),
+    ],
   });
 
+  const percentiles: FilaTabla[] = percentilesAgrupados
+    ? [
+        {
+          ...fila(["Percentiles", "95"], (e) => e.p95, true),
+          filasQueOcupa: [2],
+        },
+        fila([CUBIERTA, "98"], (e) => e.p98, true),
+      ]
+    : [
+        fila("Percentil 95", (e) => e.p95, true),
+        fila("Percentil 98", (e) => e.p98, true),
+      ];
   const filas = [
     fila("Cantidad de Datos", (e) => e.n, false, true),
     fila("Mínimo", (e) => e.minimo, true),
-    fila("Percentil 95", (e) => e.p95, true),
-    fila("Percentil 98", (e) => e.p98, true),
+    ...percentiles,
     fila("Máximo", (e) => e.maximo, true),
     fila("Media Aritmética", (e) => e.media, false),
     fila("Desvío Estándar", (e) => e.desvio, false),
@@ -249,9 +292,10 @@ export function tablaEstadisticos(
   return {
     columnas,
     filas: [...enc, ...filas],
-    // Las líneas gruesas de la planilla: entre los días, el promedio diario,
-    // los bloques de 8 h y las horas; y debajo del encabezado.
-    gruesas: [1, 1 + P, 1 + 4 * P],
+    // Las líneas gruesas de la planilla: entre los rótulos, el promedio
+    // diario, los bloques de 8 h y las horas; y debajo del encabezado.
+    gruesas: [R, R + P, R + 4 * P],
+    columnasRotulo: R,
     filasGruesas: [enc.length - 1],
   };
 }

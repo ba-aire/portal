@@ -16,7 +16,7 @@ vi.mock("@/lib/reportes/impresion", async () => {
   return {
     ImpresionNoConfigurada: real.ImpresionNoConfigurada,
     generarPdf: vi.fn(),
-    nombreDeArchivo: vi.fn(() => "co_centenario_septiembre_2026_clasico.pdf"),
+    nombreDeArchivo: vi.fn(() => "co_centenario_septiembre_2026.pdf"),
   };
 });
 
@@ -63,6 +63,7 @@ describe("GET /api/reportes/mensual", () => {
       "centenario",
       "co",
       "2026-09",
+      "clasico",
     );
     await expect(res.json()).resolves.toMatchObject({
       contaminante: "co",
@@ -80,7 +81,7 @@ describe("GET /api/reportes/mensual", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toBe("application/pdf");
     expect(res.headers.get("Content-Disposition")).toContain(
-      'filename="co_centenario_septiembre_2026_clasico.pdf"',
+      'filename="co_centenario_septiembre_2026.pdf"',
     );
     expect(generarPdf).toHaveBeenCalledWith({
       estacion: "centenario",

@@ -22,11 +22,14 @@ describe("getReporteMensual", () => {
       repo.fetchFicha,
       repo.fetchDias,
       repo.fetchEstadisticos,
-      repo.fetchExcedencias,
       repo.fetchPerfil,
     ]) {
       expect(f).toHaveBeenCalledWith(...args);
     }
+    // Sin plantilla, la clásica: solo la Res. 68.
+    expect(repo.fetchExcedencias).toHaveBeenCalledWith(...args, [
+      "Res. 68/APRA/21",
+    ]);
     expect(r).toMatchObject({
       estacion: "catalinas",
       contaminante: "nox",
@@ -36,5 +39,15 @@ describe("getReporteMensual", () => {
       perfil: [{ hora_inicio: 23 }],
     });
     expect(Number.isNaN(Date.parse(r.generado))).toBe(false);
+  });
+
+  it("la de ACUMAR cuenta además la Ley 20284, antes que la Res. 68", async () => {
+    await getReporteMensual("catalinas", "nox", "2026-09", "acumar");
+    expect(repo.fetchExcedencias).toHaveBeenCalledWith(
+      "catalinas",
+      ["no", "no2", "nox"],
+      "2026-09-01",
+      ["Ley 20284", "Res. 68/APRA/21"],
+    );
   });
 });

@@ -154,13 +154,54 @@ export function nombreVentana(
   return "Promedios 1 hora";
 }
 
-/** "Promedios 8 hs: 9 PPM (Res. 68/APRA/21, 3ra etapa)". */
+/** Si la excedencia es de la Res. 68/APRA/21 (la norma de todos los reportes). */
+export function esRes68(e: Pick<Excedencia, "norma">): boolean {
+  return e.norma.startsWith("Res. 68/APRA/21");
+}
+
+/** "Res. 68/APRA/21, 3ra etapa" o "Ley Nacional 20284": la cita entre paréntesis. */
+export function citaNorma(e: Pick<Excedencia, "norma">): string {
+  if (e.norma.startsWith("Ley 20284")) return "Ley Nacional 20284";
+  if (!esRes68(e)) return e.norma;
+  const etapa = etapaDe(e.norma);
+  return `Res. 68/APRA/21${etapa ? `, ${etapa}` : ""}`;
+}
+
+const VENTANA_CORTA = { "1h": "1 hora", "8h": "8 horas", "24h": "24 horas" };
+
+/**
+ * "Promedios 8 hs: 9 PPM (Res. 68/APRA/21, 3ra etapa)". La Ley 20284 (el
+ * reporte para ACUMAR) se escribe como la cita ese reporte: "Nivel admisible
+ * para NOx promedio en 1 hora (expresado como NO2): 450 PPB (Ley Nacional
+ * 20284)".
+ */
 export function textoLimite(
   e: Excedencia,
   nombreParametro: string,
   varios: boolean,
 ): string {
-  const etapa = etapaDe(e.norma);
+  const valor = `${numero(e.limite, e.limite % 1 === 0 ? 0 : 1)} ${unidadImpresa(e.unidad)}`;
+  if (!esRes68(e)) {
+    const comoNO2 = e.parameter_code === "nox" ? " (expresado como NO2)" : "";
+    return `Nivel admisible para ${nombreParametro} promedio en ${VENTANA_CORTA[e.window_code]}${comoNO2}: ${valor} (${citaNorma(e)})`;
+  }
   const quien = varios ? ` de ${nombreParametro}` : "";
-  return `${nombreVentana(e)}${quien}: ${numero(e.limite, e.limite % 1 === 0 ? 0 : 1)} ${unidadImpresa(e.unidad)} (Res. 68/APRA/21${etapa ? `, ${etapa}` : ""})`;
+  return `${nombreVentana(e)}${quien}: ${valor} (${citaNorma(e)})`;
+}
+
+/**
+ * El rótulo de la línea de un límite en los gráficos de la clásica. Con varios
+ * parámetros (NOx) dice de cuál es, como la planilla: "Estándar de Calidad de
+ * Aire para NO2 en 1 hora: 106 PPB (Res. 68/APRA/21, 3ra etapa)".
+ */
+export function rotuloLimite(
+  e: Excedencia,
+  nombreParametro: string,
+  varios: boolean,
+): string {
+  const valor = `${numero(e.limite, e.limite % 1 === 0 ? 0 : 1)} ${unidadImpresa(e.unidad)}`;
+  if (!esRes68(e)) return textoLimite(e, nombreParametro, varios);
+  if (varios)
+    return `Estándar de Calidad de Aire para ${nombreParametro} en ${VENTANA_CORTA[e.window_code]}: ${valor} (${citaNorma(e)})`;
+  return `Valor límite admisible: ${valor} (${citaNorma(e)})`;
 }

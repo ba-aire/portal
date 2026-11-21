@@ -21,6 +21,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { BASE_PATH } from "@/lib/base-path";
 import { NOTA_EPA, PLANTILLAS } from "../config";
 import {
+  etapaDe,
   menorQueLD,
   NOTA_PERFIL,
   numero,
@@ -33,7 +34,7 @@ import {
   maximoDelEje,
   type SerieGrafico,
 } from "../graficos";
-import { LOGO_BA_BLANCO, LOGO_PROPORCION } from "../logo";
+import { LOGO_BA_PRIMARIO, LOGO_PROPORCION } from "../logo";
 import type { Excedencia, GrupoPerfil, ReporteMensual } from "../models";
 import type { TablaArmada } from "../tabla";
 import {
@@ -47,8 +48,12 @@ import { CSS_HOJAS, dataUri, Grafico, Hoja, pt, Tabla } from "./base";
 
 const MARGEN = 36; // 48 px del diseño, en puntos
 const ANCHO = 595 - 2 * MARGEN;
-// El azul del portal (--primary de app/globals.css: hsl(204 55% 17%)).
-const ACENTO = "#143043";
+// Los colores del portal (app/globals.css; skill sirca-design): azul oscuro de
+// marca, turquesa de acento y el amarillo del logo. El turquesa va solo sobre el
+// azul (sobre blanco no tiene contraste).
+const ACENTO = "#143144"; // --primary, hsl(204 55% 17%)
+const TURQUESA = "#8de1d6"; // --secondary, hsl(172 58% 72%)
+const AMARILLO = "#ffcb00"; // --accent, el fondo del logo en la barra lateral
 const TINTA = "#1c2430";
 const GRIS = "#4a5462";
 const BORDE = "#c5ccd6";
@@ -65,7 +70,9 @@ const COLORES: Encabezados = {
   perfil: "#eef1f5",
 };
 
-const logo = dataUri(LOGO_BA_BLANCO, "png");
+const logo = dataUri(LOGO_BA_PRIMARIO, "png");
+/** Lado del cuadrado amarillo del logo, en pt. */
+const LADO_LOGO = 26;
 
 // La tipografía sale de public/ (con el basePath del portal): la carga el
 // navegador, y Chromium en Gotenberg igual.
@@ -80,6 +87,15 @@ const CSS_FUENTE = [400, 600, 700]
   )
   .join("\n");
 
+/**
+ * La banda del título, opción "C · Banda sobria" (2026-11-21): el azul de marca
+ * (skill sirca-design), todo alineado a la izquierda y sin adornos. Arriba, el
+ * mismo bloque que la barra lateral del portal (logo sobre el cuadrado amarillo
+ * y "APrA / Red de Calidad del Aire"); abajo el contaminante y, debajo, la
+ * estación, el tipo de reporte y el mes ("Estación La Boca · Reporte Mensual ·
+ * Septiembre 2026"). Una sola línea turquesa la separa del contenido. El
+ * amarillo queda solo en el logo.
+ */
 function Banda({ v }: { v: Vista }) {
   const mes = `${v.mesTitulo.charAt(0)}${v.mesTitulo.slice(1).toLowerCase()}`;
   const siglas = v.params.map((p) => v.nombre(p)).join(", ");
@@ -87,63 +103,68 @@ function Banda({ v }: { v: Vista }) {
   const titulo = v.cfg.nombre.includes("(")
     ? v.cfg.nombre
     : `${v.cfg.nombre} (${siglas})`;
+  // Blanco atenuado para lo secundario: sobre el azul sigue teniendo contraste.
+  const blancoSuave = "rgba(255, 255, 255, 0.82)";
   return (
-    <header
-      style={{
-        backgroundColor: ACENTO,
-        color: "#ffffff",
-        padding: `${pt(20)} ${pt(MARGEN)} ${pt(16)}`,
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "flex-end",
-      }}
-    >
+    <header>
       <div
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: pt(14),
-          minWidth: 0,
+          backgroundColor: ACENTO,
+          color: "#ffffff",
+          padding: `${pt(16)} ${pt(MARGEN)}`,
         }}
       >
-        {/* biome-ignore lint/performance/noImgElement: imagen embebida para imprimir */}
-        <img
-          src={logo}
-          alt="BA"
-          style={{ width: pt(40 * LOGO_PROPORCION), height: pt(40) }}
-        />
-        <div>
-          <div style={{ fontSize: pt(9) }}>
-            Agencia de Protección Ambiental · Monitoreo Atmosférico
-          </div>
-          <h1
+        <div style={{ display: "flex", alignItems: "center", gap: pt(7) }}>
+          {/* Un cuadrado amarillo con el logo al 75 % del ancho, centrado:
+              las proporciones del avatar de la barra lateral del portal
+              (h-10 w-10 rounded-sm con public/BA-primary.png). */}
+          <div
             style={{
-              // "Óxidos de Nitrógeno (NO, NO2, NOx)" no entra a 22 en una línea.
-              fontSize: pt(titulo.length > 28 ? 19 : 22),
-              whiteSpace: "nowrap",
-              fontWeight: 700,
-              margin: `${pt(3)} 0 0`,
-              lineHeight: 1.1,
+              width: pt(LADO_LOGO),
+              height: pt(LADO_LOGO),
+              backgroundColor: AMARILLO,
+              borderRadius: pt(2),
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
             }}
           >
-            {titulo}
-          </h1>
-          <div style={{ fontSize: pt(12), marginTop: pt(2) }}>
-            {`Estación ${v.estacion.nombre} · ${mes}`}
+            {/* biome-ignore lint/performance/noImgElement: imagen embebida para imprimir */}
+            <img
+              src={logo}
+              alt="BA"
+              style={{
+                width: pt(LADO_LOGO * 0.75),
+                height: pt((LADO_LOGO * 0.75) / LOGO_PROPORCION),
+              }}
+            />
+          </div>
+          <div style={{ lineHeight: 1.2 }}>
+            <div style={{ fontSize: pt(9.5), fontWeight: 700 }}>APrA</div>
+            <div style={{ fontSize: pt(7.5), color: blancoSuave }}>
+              Red de Calidad del Aire
+            </div>
           </div>
         </div>
+        <h1
+          style={{
+            fontSize: pt(24),
+            whiteSpace: "nowrap",
+            fontWeight: 700,
+            margin: `${pt(14)} 0 0`,
+            lineHeight: 1.1,
+          }}
+        >
+          {titulo}
+        </h1>
+        <div
+          style={{ fontSize: pt(11.5), marginTop: pt(4), color: blancoSuave }}
+        >
+          {`Estación ${v.estacion.nombre} · Reporte Mensual · ${mes}`}
+        </div>
       </div>
-      <div
-        style={{
-          textAlign: "right",
-          fontSize: pt(9),
-          whiteSpace: "nowrap",
-          flexShrink: 0,
-        }}
-      >
-        <div>Reporte mensual</div>
-        <div>Red automática de monitoreo</div>
-      </div>
+      <div style={{ height: pt(2), backgroundColor: TURQUESA }} />
     </header>
   );
 }
@@ -347,6 +368,16 @@ function Resumen({ v }: { v: Vista }) {
       />
     </div>
   );
+}
+
+/**
+ * La etapa de la Res. 68 contra la que se evaluó el mes ("3ra etapa"): la vigente
+ * el primer día del mes (reporte.mensual_excedencias). Null si el contaminante no
+ * tiene límites de corto plazo.
+ */
+function etapaDelMes(v: Vista): string | null {
+  const e = v.excedencias()[0];
+  return e ? etapaDe(e.norma) : null;
 }
 
 function Excedencias({ v }: { v: Vista }) {
@@ -553,7 +584,7 @@ function GraficoA({
         etiquetasX={etiquetasX}
         series={series}
         escala={null}
-        limite={limite}
+        limites={limite ? [limite] : []}
         tamanoRotulos={7.5}
         {...graficoNuevo}
       />
@@ -721,7 +752,7 @@ function Metodo({ v }: { v: Vista }) {
     "Criterios de validez: una hora es válida con al menos 45 minutos válidos (75 %); un bloque de 8 horas, con al menos 6 horas válidas; un día (de 00 a 24 h), con al menos 18 horas válidas. Un minuto en alarma, calibración o servicio no es válido.",
     "SD (Sin Dato): no hubo ninguna medición en esa ventana. DND (Dato No Disponible): hubo mediciones, pero no alcanzan el criterio de validez.",
     "Los estadísticos usan solo ventanas válidas. Percentiles por interpolación lineal (como PERCENTIL de Excel); desvío estándar muestral.",
-    "Excedencias contra la Res. 68/APRA/21 en la etapa vigente el primer día del mes. Las medias móviles de 8 horas se cuentan en el mes en que TERMINAN.",
+    `Excedencias contra la Res. 68/APRA/21 (Anexo I) en la etapa vigente el primer día del mes${etapaDelMes(v) ? ` (para este mes, la ${etapaDelMes(v)})` : ""}. Las medias móviles de 8 horas se cuentan en el mes en que TERMINAN.`,
     NOTA_PERFIL,
     "Domingos y feriados según el calendario oficial del Ministerio del Interior (feriados nacionales, días no laborables con fines turísticos y feriados especiales que rigen en la Ciudad). Los días no laborables optativos (religiosos) se cuentan como días hábiles.",
     "Los gráficos usan la escala de los datos. Un valor límite muy por encima de lo medido no se dibuja (aplastaría la serie contra el eje): se indica como fuera de escala.",
@@ -767,7 +798,7 @@ const cuerpo: CSSProperties = { padding: `${pt(30)} ${pt(MARGEN)} 0` };
 export function ReporteNuevo({ reporte }: { reporte: ReporteMensual }) {
   const v = vista(reporte);
   const pl = PLANTILLAS.nuevo;
-  const pie = `Versión nueva v${pl.version} · Generado el ${v.generado} desde SIRCA`;
+  const pie = `Versión nueva v${pl.version} (${pl.fecha}) · Generado el ${v.generado} desde SIRCA`;
   const fs = v.varios ? 6.5 : 8;
   const tabla = (t: TablaArmada, tamano = fs) => (
     <Tabla
@@ -802,7 +833,9 @@ export function ReporteNuevo({ reporte }: { reporte: ReporteMensual }) {
             <Seccion titulo="Resumen del mes">
               <Resumen v={v} />
             </Seccion>
-            <Seccion titulo="Excedencias · Res. 68/APRA/21">
+            <Seccion
+              titulo={`Excedencias · Res. 68/APRA/21${etapaDelMes(v) ? ` ${etapaDelMes(v)}` : ""}`}
+            >
               <Excedencias v={v} />
             </Seccion>
             <Seccion titulo="Concentración diaria">

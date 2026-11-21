@@ -41,4 +41,6 @@ export type TablaArmada = {
   gruesas: number[];
   /** Filas que llevan debajo una línea gruesa (el fin del encabezado). */
   filasGruesas: number[];
+  /** Cuántas columnas de la izquierda son de rótulos (por defecto 1). */
+  columnasRotulo?: number;
 };

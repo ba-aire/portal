@@ -25,18 +25,18 @@ export function pasoDelEje(maximo: number, marcas = 10): number {
 }
 
 /**
- * El máximo del eje Y: el de la planilla (`escala`), salvo que los datos o el
- * límite lo superen; entonces crece al próximo múltiplo del paso.
+ * El máximo del eje Y: el de la planilla (`escala`), salvo que los datos o
+ * algún límite lo superen; entonces crece al próximo múltiplo del paso.
  */
 export function maximoDelEje(
   escala: number | null,
   series: SerieGrafico[],
-  limite?: LimiteGrafico,
+  limites: LimiteGrafico[] = [],
 ): number {
   const datos = series
     .flatMap((s) => s.valores)
     .filter((v): v is number => v !== null);
-  const tope = Math.max(0, ...datos, limite ? limite.valor * 1.1 : 0);
+  const tope = Math.max(0, ...datos, ...limites.map((l) => l.valor * 1.1));
   if (escala !== null && tope <= escala) return escala;
   const paso = pasoDelEje(tope || 1);
   return Math.ceil((tope || 1) / paso) * paso;

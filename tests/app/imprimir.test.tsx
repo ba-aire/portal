@@ -3,6 +3,8 @@
 // La página que imprime Gotenberg queda fuera de las rutas protegidas del proxy:
 // la autorización está en la página. Entra quien trae un token para ESE reporte
 // o una sesión del portal; el resto va a /login sin tocar la base.
+import type { ReactElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
@@ -30,6 +32,9 @@ const BASE = {
   contaminante: "co",
   mes: "2026-09",
 };
+// La página devuelve <><style/>{plantilla}</>: el componente es el segundo hijo.
+const reporteDe = (el: ReactElement) =>
+  (el.props as { children: ReactElement[] }).children[1].type;
 const abrir = (q: Record<string, string | string[]>) =>
   Pagina({ searchParams: Promise.resolve(q) });
 
@@ -59,11 +64,14 @@ describe("/imprimir/reporte-mensual", () => {
   it("con el token de impresión entra (Gotenberg)", async () => {
     vi.mocked(tokenValido).mockResolvedValue(true);
     const el = await abrir({ ...BASE, plantilla: "nuevo", token: "ok" });
-    expect(el.type).toBe(ReporteNuevo);
+    expect(reporteDe(el)).toBe(ReporteNuevo);
+    // La página trae su CSS de impresión (A4 sin márgenes).
+    expect(renderToStaticMarkup(el)).toContain("@page");
     expect(getReporteMensual).toHaveBeenCalledWith(
       "centenario",
       "co",
       "2026-09",
+      "nuevo",
     );
   });
 
@@ -75,7 +83,7 @@ describe("/imprimir/reporte-mensual", () => {
       role: "VIEWER",
     });
     const el = await abrir({ ...BASE, estacion: ["centenario", "cordoba"] });
-    expect(el.type).toBe(ReporteClasico);
+    expect(reporteDe(el)).toBe(ReporteClasico);
   });
 
   it("parámetros fuera de la lista: 404", async () => {

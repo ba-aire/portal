@@ -180,10 +180,11 @@ describe("LISTA_PARA_IMPRIMIR", () => {
 });
 
 describe("nombreDeArchivo", () => {
-  it("como los PDF publicados, más la plantilla", () => {
-    expect(nombreDeArchivo(PEDIDO)).toBe(
-      "co_centenario_septiembre_2026_clasico.pdf",
-    );
+  it("la clásica, como los PDF publicados: contaminante_estacion_mes_anio", () => {
+    expect(nombreDeArchivo(PEDIDO)).toBe("co_centenario_septiembre_2026.pdf");
+  });
+
+  it("la nueva, con _nuevo al final", () => {
     expect(
       nombreDeArchivo({
         estacion: "catalinas",
@@ -191,6 +192,20 @@ describe("nombreDeArchivo", () => {
         mes: "2026-09",
         plantilla: "nuevo",
       }),
-    ).toBe("nox_la_boca_septiembre_2026_nuevo.pdf");
+    ).toBe("nox_laboca_septiembre_2026_nuevo.pdf");
+  });
+
+  it("la de ACUMAR, con _acumar al final; la estación sin espacios", () => {
+    expect(
+      nombreDeArchivo({
+        estacion: "catalinas",
+        contaminante: "nox",
+        mes: "2025-02",
+        plantilla: "acumar",
+      }),
+    ).toBe("nox_laboca_febrero_2025_acumar.pdf");
+    expect(nombreDeArchivo({ ...PEDIDO, estacion: "cordoba" })).toBe(
+      "co_cordoba_septiembre_2026.pdf",
+    );
   });
 });

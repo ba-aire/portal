@@ -13,9 +13,9 @@ export const runtime = "nodejs";
 
 // GET /api/reportes/mensual?estacion=centenario&contaminante=co&mes=2026-09
 //     [&formato=json|pdf][&plantilla=clasico|nuevo]
-// El reporte mensual de una estación y un contaminante: en JSON para la vista
-// previa, o el PDF en la plantilla pedida. El PDF es la página
-// /imprimir/reporte-mensual impresa por Chromium (Gotenberg).
+// El reporte mensual de una estación y un contaminante: los números en JSON o
+// el PDF en la plantilla pedida (la página /imprimir/reporte-mensual impresa
+// por Chromium en Gotenberg).
 export async function GET(request: NextRequest) {
   // El matcher de proxy.ts excluye /api, así que la sesión se verifica acá.
   if (!(await getSession())) {
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
   try {
     if (formato === "json") {
       return NextResponse.json(
-        await getReporteMensual(estacion, contaminante, mes),
+        await getReporteMensual(estacion, contaminante, mes, plantilla),
       );
     }
 

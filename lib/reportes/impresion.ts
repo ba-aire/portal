@@ -151,8 +151,10 @@ export async function generarPdf(p: ReportePedido): Promise<Buffer> {
 }
 
 /**
- * "pm10_centenario_septiembre_2026_clasico.pdf": el nombre de los PDF que ya se
- * publican (contaminante, estación, mes), más la plantilla.
+ * "nox_laboca_septiembre_2026.pdf": la clásica lleva siempre el nombre de los
+ * PDF que ya se publican (contaminante_estacion_mes_anio, la estación sin
+ * "Parque", sin tildes y sin espacios); la de ACUMAR y la nueva, el mismo
+ * nombre con "_acumar" o "_nuevo" al final.
  */
 export function nombreDeArchivo(p: ReportePedido): string {
   const [anio, mes] = p.mes.split("-");
@@ -166,8 +168,10 @@ export function nombreDeArchivo(p: ReportePedido): string {
   const estacion = ESTACIONES[p.estacion].nombre
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/^parque /, "")
-    .replace(/\s+/g, "_");
-  return `${p.contaminante}_${estacion}_${nombreMes}_${anio}_${p.plantilla}.pdf`;
+    .replace(/\s+/g, "");
+  const base = `${p.contaminante}_${estacion}_${nombreMes}_${anio}`;
+  const sufijo = { clasico: "", acumar: "_acumar", nuevo: "_nuevo" };
+  return `${base}${sufijo[p.plantilla]}.pdf`;
 }

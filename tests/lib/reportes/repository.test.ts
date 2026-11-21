@@ -41,11 +41,6 @@ describe("repositorio del reporte mensual", () => {
       "reporte.mensual_estadisticos",
       ["p95::float8", "desvio::float8"],
     ],
-    [
-      fetchExcedencias,
-      "reporte.mensual_excedencias",
-      ["limite::float8", "maximo::float8"],
-    ],
     [fetchPerfil, "reporte.mensual_perfil_horario", ["valor::float8"]],
   ] as const)(
     "%o llama a %s con las entradas como parámetros",
@@ -59,4 +54,18 @@ describe("repositorio del reporte mensual", () => {
       expect(plano).not.toContain("centenario");
     },
   );
+
+  it("las excedencias llevan además las normas, como cuarto parámetro", async () => {
+    const normas = ["Ley 20284", "Res. 68/APRA/21"];
+    await fetchExcedencias(...ARGS, normas);
+    const [sql, params] = queryAiredb.mock.calls[0];
+    const plano = sql.replace(/\s+/g, " ");
+    expect(plano).toContain(
+      "reporte.mensual_excedencias($1, $2::text[], $3::date, $4::text[])",
+    );
+    for (const c of ["limite::float8", "maximo::float8"])
+      expect(plano).toContain(c);
+    expect(params).toEqual([...ARGS, normas]);
+    expect(plano).not.toContain("Ley 20284");
+  });
 });

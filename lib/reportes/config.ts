@@ -14,30 +14,88 @@ import { z } from "zod";
 //   clasico  reproduce la planilla Excel que se subía a buenosaires.gob.ar:
 //            mismas tablas, mismo orden, mismos gráficos.
 //   nuevo    rediseño: resumen arriba, notas de método, procedencia del dato.
-// `version` es la fecha de la última modificación del DISEÑO de cada una, y va
-// impresa en el pie de cada página. Cambiar el diseño de una plantilla es
-// cambiar su fecha acá: así un PDF viejo se distingue de uno nuevo sin abrirlos
-// lado a lado.
-export const PlantillaEnum = z.enum(["clasico", "nuevo"]);
+// Cada una lleva una versión (`v1.1`) y la fecha en que se cambió por última vez
+// su DISEÑO; las dos van impresas en el pie de cada página. Cambiar el diseño de
+// una plantilla es subir su versión y su fecha acá: así un PDF viejo se
+// distingue de uno nuevo sin abrirlos lado a lado.
+//   - versión menor (1.0 → 1.1): cambios de estilo o de orden, mismo contenido
+//   - versión mayor (1.x → 2.0): se agrega o se saca contenido
+// La clásica copia la planilla y no se rediseña: su versión casi no cambia, el
+// selector de la pantalla muestra solo su nombre y el PDF no la imprime (la
+// planilla no tenía pie).
+//
+// `acumar` es la clásica para ACUMAR: las mismas hojas, y las excedencias
+// cuentan además la Ley 20284 (NOx en 1 hora, 450 ppb). `normas` son las normas
+// contra las que se cuentan las excedencias (prefijos de norma.v_limite.norma,
+// en el orden en que se listan; ver reporte.mensual_excedencias en data).
+export const PlantillaEnum = z.enum(["clasico", "acumar", "nuevo"]);
 export type Plantilla = z.infer<typeof PlantillaEnum>;
 
 export const PLANTILLAS: Record<
   Plantilla,
-  { nombre: string; version: string; descripcion: string }
+  {
+    nombre: string;
+    version: string;
+    fecha: string;
+    descripcion: string;
+    normas: string[];
+    /** Si el selector de plantilla muestra la versión junto al nombre. */
+    versionVisible: boolean;
+  }
 > = {
   clasico: {
     nombre: "Clásica",
-    version: "2026-11-18",
+    // 1.0 (2026-11-18): copia del PDF publicado.
+    // 1.1 (2026-11-21): tamaños de letra y alto de fila del PDF que exporta
+    //     hoy la planilla.
+    // 1.2 (2026-11-21): "Percentiles" con 95 y 98 como la planilla, líneas
+    //     gruesas en los encabezados, el estándar de NO2 rotulado en el
+    //     gráfico del NOx y sin la leyenda de versión al pie.
+    version: "1.2",
+    fecha: "2026-11-21",
+    versionVisible: false,
+    normas: ["Res. 68/APRA/21"],
     descripcion:
       "El formato de siempre: las mismas tablas y gráficos que la planilla Excel.",
   },
+  acumar: {
+    nombre: "Clásica",
+    // 1.0 (2026-11-21): la clásica 1.2 más la Ley 20284.
+    version: "1.0",
+    fecha: "2026-11-21",
+    versionVisible: false,
+    normas: ["Ley 20284", "Res. 68/APRA/21"],
+    descripcion:
+      "La clásica para ACUMAR: suma el nivel admisible de NOx de la Ley Nacional 20284.",
+  },
   nuevo: {
     nombre: "Nueva",
-    version: "2026-11-18",
+    // 1.0 (2026-11-18): la dirección "A · Institucional".
+    // 1.1 (2026-11-21): banda con los colores del portal (skill sirca-design).
+    // 1.2 (2026-11-21): banda centrada, logo y etiqueta más chicos en las
+    //     esquinas, con la subgerencia.
+    // 1.3 (2026-11-21): "APrA / Red de Calidad del Aire" junto al logo, como
+    //     la barra lateral; título más grande, el mes debajo de la estación y
+    //     doble borde turquesa y amarillo.
+    // 1.4 (2026-11-21): banda sobria ("C"), alineada a la izquierda, con una
+    //     sola línea turquesa, logo en un cuadrado como el de la barra lateral;
+    //     las excedencias dicen la etapa de la Res. 68.
+    // 1.5 (2026-11-21): "Reporte Mensual" pasa de la esquina a la línea de la
+    //     estación y el mes; "Res. 68/APRA/21 3ra etapa", sin coma.
+    version: "1.5",
+    fecha: "2026-11-21",
+    versionVisible: true,
+    normas: ["Res. 68/APRA/21"],
     descripcion:
       "Rediseño con resumen del mes, notas de método e instrumentos que midieron.",
   },
 };
+
+/** "Nueva v1.1" o "Clásica": como se muestra en el selector. */
+export function etiquetaPlantilla(p: Plantilla): string {
+  const pl = PLANTILLAS[p];
+  return pl.versionVisible ? `${pl.nombre} v${pl.version}` : pl.nombre;
+}
 
 // ---- Estaciones publicadas ----------------------------------------------------
 // Las tres que tienen página en buenosaires.gob.ar. `catalinas` es el código de

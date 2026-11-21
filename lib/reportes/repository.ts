@@ -17,7 +17,9 @@ import type {
 //
 // Las tres entradas viajan como parámetros: $1 estación (station_code), $2 los
 // parameter_code (text[]) y $3 un día del mes (date). Los numeric se castean a
-// float8: node-postgres devuelve numeric como string.
+// float8: node-postgres devuelve numeric como string. Las excedencias llevan un
+// cuarto, $4: las normas contra las que se evalúa (text[], prefijos de
+// norma.v_limite.norma, en el orden en que se quieren las filas).
 
 type Args = [string, string[], string];
 
@@ -47,7 +49,7 @@ const SQL_EXCEDENCIAS = `
   SELECT parameter_code, norma, cita, window_code, is_moving, periodo_publicado,
          limite::float8 AS limite, unidad, forma_cumplimiento,
          n_evaluados, n_excedencias, maximo::float8 AS maximo
-  FROM reporte.mensual_excedencias($1, $2::text[], $3::date)`;
+  FROM reporte.mensual_excedencias($1, $2::text[], $3::date, $4::text[])`;
 
 const SQL_PERFIL = `
   SELECT parameter_code, hora_inicio, grupo, valor::float8 AS valor, n
@@ -58,7 +60,7 @@ export const fetchFicha = (...a: Args) =>
 export const fetchDias = (...a: Args) => queryAiredb<Dia>(SQL_DIAS, a);
 export const fetchEstadisticos = (...a: Args) =>
   queryAiredb<Estadistico>(SQL_ESTADISTICOS, a);
-export const fetchExcedencias = (...a: Args) =>
+export const fetchExcedencias = (...a: [...Args, string[]]) =>
   queryAiredb<Excedencia>(SQL_EXCEDENCIAS, a);
 export const fetchPerfil = (...a: Args) =>
   queryAiredb<CeldaPerfil>(SQL_PERFIL, a);

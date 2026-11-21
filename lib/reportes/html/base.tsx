@@ -71,9 +71,12 @@ export function Hoja({
  * El CSS de impresión: A4 sin márgenes (los pone cada hoja), una hoja por
  * página, y los fondos de color impresos (los encabezados de la planilla).
  */
+/** El gris detrás de las hojas, en pantalla. */
+export const FONDO_HOJAS = "#d9dde3";
+
+// Las hojas: lo que necesita el reporte esté donde esté (la página de impresión o
+// la vista previa dentro de /reportes).
 export const CSS_HOJAS = `
-html { overflow: auto !important; background: #d9dde3; }
-body { margin: 0; }
 .hoja {
   position: relative;
   box-sizing: border-box;
@@ -87,11 +90,25 @@ body { margin: 0; }
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
+`;
+
+// Las reglas de impresión van con `body .hoja` y no con `.hoja`: esta hoja de
+// estilos queda ANTES que la del reporte (CSS_HOJAS, dentro de la plantilla), y
+// a igual especificidad ganaría el margen de pantalla de CSS_HOJAS. Con ese
+// margen cada A4 desborda y el PDF sale con el doble de páginas.
+//
+// La página de impresión (/imprimir/reporte-mensual), que es solo el reporte: el
+// layout raíz deja el html con overflow-hidden, y al imprimir cada hoja es una
+// página A4 sin márgenes. NO va en la vista previa de /reportes: rompería el
+// scroll del portal.
+export const CSS_PAGINA = `
+html { overflow: auto !important; background: ${FONDO_HOJAS}; }
+body { margin: 0; }
 @page { size: A4; margin: 0; }
 @media print {
   html { background: #ffffff; }
-  .hoja { margin: 0; box-shadow: none; break-after: page; }
-  .hoja:last-child { break-after: auto; }
+  body .hoja { margin: 0; box-shadow: none; break-after: page; }
+  body .hoja:last-child { break-after: auto; }
 }
 `;
 
@@ -122,6 +139,8 @@ export function Tabla({
   grueso = 1.4,
   conGruesas = true,
   padding = "0.3pt 2pt",
+  alturaLinea,
+  filasEnCaja = [],
 }: {
   t: TablaArmada;
   fuente: number;
@@ -131,6 +150,17 @@ export function Tabla({
   /** false: sin separadores gruesos (la plantilla nueva). */
   conGruesas?: boolean;
   padding?: string;
+  /**
+   * Alto de la línea de texto en pt, igual para todas las celdas: fija el paso
+   * de las filas aunque una columna tenga letra más grande (la planilla: valores
+   * en 8,3 pt y días en 9,2 pt, una fila cada 9,6 pt). Sin él, 1,15 de la letra.
+   */
+  alturaLinea?: number;
+  /**
+   * Filas cuyas celdas van encerradas en línea gruesa (los encabezados de la
+   * planilla: el mes, "Promedio 24 Hs", "PROMEDIO 8 HS", "0 a 8"...).
+   */
+  filasEnCaja?: number[];
 }) {
   const linea = (g: number) => `${g}pt solid ${colorBorde}`;
   return (
@@ -141,7 +171,7 @@ export function Tabla({
         width: pt(t.columnas.reduce((s, c) => s + c.ancho, 0)),
         border: linea(bordeExterior),
         fontSize: pt(fuente),
-        lineHeight: 1.15,
+        lineHeight: alturaLinea ? pt(alturaLinea) : 1.15,
       }}
     >
       <colgroup>
@@ -180,7 +210,9 @@ export function Tabla({
                     colSpan={span > 1 ? span : undefined}
                     rowSpan={ocupa > 1 ? ocupa : undefined}
                     style={{
-                      border: linea(FINO),
+                      border: linea(
+                        conGruesas && filasEnCaja.includes(i) ? grueso : FINO,
+                      ),
                       ...(gruesaIzq ? { borderLeft: linea(grueso) } : {}),
                       ...(gruesaAbajo ? { borderBottom: linea(grueso) } : {}),
                       padding,
@@ -213,7 +245,7 @@ export function Grafico({
   series,
   escala,
   paso: pasoFijo,
-  limite,
+  limites = [],
   fondo = "#ffffff",
   imagenFondo,
   grilla = "#d0d0d0",
@@ -236,7 +268,8 @@ export function Grafico({
   escala: number | null;
   /** El paso fijo de las marcas del eje Y, si el eje queda en `escala`. */
   paso?: number;
-  limite?: LimiteGrafico;
+  /** Las líneas horizontales de los límites (una por norma). */
+  limites?: LimiteGrafico[];
   fondo?: string;
   /** Imagen (data URI) estirada sobre el área de trazado. */
   imagenFondo?: string;
@@ -270,7 +303,7 @@ export function Grafico({
   const abajo = dosRenglones ? 22 : 12;
   const w = ancho - izq - der;
   const h = alto - arr - abajo;
-  const yMax = maximoDelEje(escala, series, limite);
+  const yMax = maximoDelEje(escala, series, limites);
   const paso =
     pasoFijo !== undefined && yMax === escala ? pasoFijo : pasoDelEje(yMax);
   const n = etiquetasX.length;
@@ -338,16 +371,17 @@ export function Grafico({
           strokeWidth={grosorGrilla}
         />
       ))}
-      {limite && (
+      {limites.map((l) => (
         <line
+          key={`${l.valor}${l.etiqueta}`}
           x1={izq}
           x2={izq + w}
-          y1={y(limite.valor)}
-          y2={y(limite.valor)}
-          stroke={limite.color ?? "#e00000"}
+          y1={y(l.valor)}
+          y2={y(l.valor)}
+          stroke={l.color ?? "#e00000"}
           strokeWidth={2}
         />
-      )}
+      ))}
       {series.map((s) => {
         const grosor = s.grosor ?? 1.2;
         return (
