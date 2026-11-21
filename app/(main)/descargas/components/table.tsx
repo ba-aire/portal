@@ -1,5 +1,7 @@
+import { FILA, FILA_ENCABEZADO, TABLA, TD, TH } from "@/components/tabla-datos";
 import { TABLE_CONFIG } from "@/lib/descargas/config";
 import type { DataPoint } from "@/lib/descargas/models";
+import { nombreSerie } from "@/lib/estaciones";
 import { encabezadoPeriodo, formatPeriodo, type Periodo } from "@/lib/periodo";
 
 interface TableProps {
@@ -75,22 +77,25 @@ export default function Table({ data, interval }: TableProps) {
     }
     // Handle number values
     if (typeof value === "number") {
-      return Number(value).toFixed(3);
+      return value.toLocaleString("es-AR", {
+        minimumFractionDigits: 3,
+        maximumFractionDigits: 3,
+      });
     }
     return String(value);
   };
 
   return (
     <div className="overflow-x-auto p-2">
-      <table className="min-w-full border text-sm">
+      <table className={TABLA}>
         <thead>
-          <tr className="bg-gray-100">
-            <th className="border px-2 py-1">{encabezadoPeriodo(interval)}</th>
+          <tr className={FILA_ENCABEZADO}>
+            <th scope="col" className={TH}>
+              {encabezadoPeriodo(interval)}
+            </th>
             {locations.map((location) => (
-              <th key={location} className="border px-2 py-1 capitalize">
-                {location === "catalinas"
-                  ? "La Boca"
-                  : location.charAt(0).toUpperCase() + location.slice(1)}
+              <th key={location} scope="col" className={TH}>
+                {nombreSerie(location)}
               </th>
             ))}
           </tr>
@@ -98,12 +103,12 @@ export default function Table({ data, interval }: TableProps) {
         <tbody>
           {data.map((row) => {
             return (
-              <tr key={String(row.time)}>
-                <td className="border px-2 py-1 text-center whitespace-nowrap">
+              <tr key={String(row.time)} className={FILA}>
+                <td className={`${TD} whitespace-nowrap`}>
                   {formatPeriodo(row.time, interval)}
                 </td>
                 {locations.map((location) => (
-                  <td key={location} className="border px-2 py-1 text-center">
+                  <td key={location} className={TD}>
                     {formatCellValue(row[location])}
                   </td>
                 ))}

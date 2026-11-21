@@ -92,9 +92,9 @@ export default function ValidacionPanel({
 
       <div className="flex flex-wrap items-end gap-4">
         <div className="grid gap-1.5">
-          <Label>Estación</Label>
+          <Label htmlFor="val-estacion">Estación</Label>
           <Select value={estacion} onValueChange={setEstacion}>
-            <SelectTrigger className="w-48 bg-white">
+            <SelectTrigger id="val-estacion" className="w-48 bg-white">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -108,12 +108,12 @@ export default function ValidacionPanel({
           </Select>
         </div>
         <div className="grid gap-1.5">
-          <Label>Mostrar</Label>
+          <Label htmlFor="val-estado">Mostrar</Label>
           <Select
             value={estado}
             onValueChange={(v) => setEstado(v as "vigentes" | "todas")}
           >
-            <SelectTrigger className="w-48 bg-white">
+            <SelectTrigger id="val-estado" className="w-48 bg-white">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

@@ -14,6 +14,7 @@ import {
   type Root,
   type WeekNumber,
 } from "react-day-picker";
+import { es } from "react-day-picker/locale";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -104,6 +105,8 @@ function Calendar({
   classNames,
   showOutsideDays = true,
   captionLayout = "label",
+  // En español por defecto ("lu ma mi", "nov"), como el resto del portal.
+  locale = es,
   buttonVariant = "ghost",
   formatters,
   components,
@@ -123,9 +126,10 @@ function Calendar({
         className,
       )}
       captionLayout={captionLayout}
+      locale={locale}
       formatters={{
         formatMonthDropdown: (date) =>
-          date.toLocaleString("default", { month: "short" }),
+          date.toLocaleString("es-AR", { month: "short" }),
         ...formatters,
       }}
       classNames={{

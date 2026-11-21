@@ -6,10 +6,10 @@
 
 import {
   type FiltrosType,
-  locationOptions,
   promedioOptions,
 } from "@/app/(main)/descargas/components/filters";
 import { filtrosSchema } from "@/lib/descargas/models";
+import { OPCIONES_ESTACION } from "@/lib/estaciones";
 import {
   fechaDesdeUrl,
   franjaDesdeUrl,
@@ -70,7 +70,7 @@ export function filtrosDesdeUrl(
 ): { filtros: FiltrosType; busqueda: FiltrosType | null } {
   const location = opcionDesdeUrl<FiltrosType["location"]>(
     params.get("location"),
-    locationOptions,
+    OPCIONES_ESTACION,
   );
   const integration = opcionDesdeUrl<FiltrosType["integration"]>(
     params.get("integration"),

@@ -25,7 +25,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { verifySession } from "@/lib/auth-session";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { Avatar, AvatarFallback } from "../ui/avatar";
 import { Button } from "../ui/button";
 
 interface CookieResponse {
@@ -38,11 +38,18 @@ interface CookieResponse {
   };
 }
 
+// Iniciales del nombre ("Admin Dev" -> "AD"), armadas acá: el avatar no se
+// pide a ningún servicio externo, que recibiría el correo de cada usuario.
+function iniciales(nombre: string): string {
+  const partes = nombre.trim().split(/\s+/).filter(Boolean);
+  const letras = partes.slice(0, 2).map((p) => p.charAt(0).toUpperCase());
+  return letras.join("") || "?";
+}
+
 export async function Footer() {
   // user cookie sesion data
   const cookie: CookieResponse = await verifySession();
   const userName = cookie.data.userName;
-  const userEmail = cookie.data.email;
   const userRole = cookie.data.role;
 
   return (
@@ -53,11 +60,10 @@ export async function Footer() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton size={"lg"}>
-                  <Avatar className="h-7 w-7 rounded-lg">
-                    <AvatarImage
-                      src={`https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(userEmail)}&fontSize=45&weight=bold&radius=15`}
-                    />
-                    <AvatarFallback>user</AvatarFallback>
+                  <Avatar className="h-7 w-7 rounded-lg" aria-hidden>
+                    <AvatarFallback className="rounded-lg bg-secondary text-primary text-xs font-bold">
+                      {iniciales(userName)}
+                    </AvatarFallback>
                   </Avatar>
                   <p className="font-bold text-base">{userName}</p>
                   <ChevronUp className="ml-auto" />

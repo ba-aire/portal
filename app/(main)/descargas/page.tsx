@@ -1,8 +1,9 @@
 "use client";
-import { AlertCircle, FileDown, FileWarning, Loader2 } from "lucide-react";
+import { AlertCircle, FileDown, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 import { toast } from "sonner";
+import { SinDatos } from "@/components/sin-datos";
 import SonnerToaster from "@/components/sonner-toaster";
 import { Button } from "@/components/ui/button";
 import {
@@ -122,14 +123,7 @@ export default function DescargasPage() {
         </>
       )}
       {Array.isArray(data) && data.length === 0 && !isLoading && !error && (
-        <div className="w-full h-full flex flex-col items-center justify-center text-center">
-          <div className="p-6 bg-destructive/10 rounded-full mb-6 shadow-lg">
-            <FileWarning className="w-16 h-16 text-yellow-500" />
-          </div>
-          <h3 className="text-2xl font-bold text-yellow-500 mb-3">
-            No se encontraron datos.
-          </h3>
-        </div>
+        <SinDatos sugerencia="Probá con otro rango de fechas u otra estación." />
       )}
       {data === undefined && !isLoading && !error && (
         <div className="w-full flex flex-col items-center justify-center text-center">

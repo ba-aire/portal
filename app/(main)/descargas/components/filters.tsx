@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import HourRangeSelect from "@/components/hour-range-select";
+import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
@@ -27,6 +28,7 @@ import {
   filtrosParaBuscar,
 } from "@/lib/descargas/filtros-url";
 import { filtrosSchema } from "@/lib/descargas/models";
+import { type Estacion, OPCIONES_ESTACION } from "@/lib/estaciones";
 import { HORA_DESDE_DEFECTO, HORA_HASTA_DEFECTO } from "@/lib/rango-minutal";
 
 export const promedioOptions = [
@@ -34,15 +36,8 @@ export const promedioOptions = [
   { label: "Horarios", value: "hour" },
 ];
 
-export const locationOptions = [
-  { label: "Centenario", value: "centenario" },
-  { label: "La Boca", value: "catalinas" },
-  { label: "Cordoba", value: "cordoba" },
-  { label: "Cifa", value: "cifa" },
-];
-
 export interface FiltrosType {
-  location: "centenario" | "catalinas" | "cordoba" | "cifa";
+  location: Estacion;
   integration: "hour" | "minute";
   startDate: Date | undefined;
   endDate: Date | undefined;
@@ -151,16 +146,12 @@ export default function Filtros({
 
   return (
     <div className="p-2">
-      <header className="mb-10">
-        <h1 className="text-2xl font-bold text-primary text-center relative z-10 uppercase tracking-wider mb-2">
-          Red de Calidad del Aire
-        </h1>
-        <h3 className="text-primary/70 text-center font-semibold">
-          Seleccioná estación, integración y rango de fechas para descargar los
-          datos. Los datos minutales se descargan de a un día, con la franja
-          horaria que elijas.
-        </h3>
-      </header>
+      <PageHeader
+        centrado
+        className="mb-10"
+        title="Descargas"
+        description="Seleccioná estación, integración y rango de fechas para descargar los datos. Los datos minutales se descargan de a un día, con la franja horaria que elijas."
+      />
       <div className="flex flex-col flex-wrap md:flex-row gap-4 items-center justify-center text-primary">
         {/* Select location */}
         <div className="flex flex-col gap-3">
@@ -177,7 +168,7 @@ export default function Filtros({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {locationOptions.map((opt) => (
+              {OPCIONES_ESTACION.map((opt) => (
                 <SelectItem key={opt.value} value={opt.value}>
                   {opt.label}
                 </SelectItem>

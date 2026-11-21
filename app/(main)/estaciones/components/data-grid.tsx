@@ -5,6 +5,24 @@ import { cn } from "@/lib/utils";
 import { contaminantes, meteorologica } from "./items";
 import CardCabina from "./ui/card-cabina";
 
+// Valor de una tarjeta: coma decimal y siempre la misma cantidad de decimales
+// por variable; "s/d" si no hay dato (como en el resto del portal).
+function formatoValor(
+  valor: string | number | null | undefined,
+  decimales: number,
+): string {
+  const n = typeof valor === "string" ? Number(valor) : valor;
+  if (n == null || !Number.isFinite(n)) return "s/d";
+  return n.toLocaleString("es-AR", {
+    minimumFractionDigits: decimales,
+    maximumFractionDigits: decimales,
+  });
+}
+
+// Sin dato, sin unidad: "s/d" y no "s/d °C".
+const conUnidad = (texto: string, unidad: string) =>
+  texto === "s/d" ? texto : `${texto} ${unidad}`;
+
 export default function DataGrid({ data }: { data: FullLocationData }) {
   const getStatusColor = (status: Status) => {
     switch (status) {
@@ -63,14 +81,12 @@ export default function DataGrid({ data }: { data: FullLocationData }) {
           <CardCabina
             label="Temperatura Cabina"
             icon={<Thermometer className="w-4 h-4 text-primary" />}
-            value={
-              data.temp_in_mean !== null ? `${data.temp_in_mean} °C` : "--"
-            }
+            value={conUnidad(formatoValor(data.temp_in_mean, 1), "°C")}
           />
           <CardCabina
             label="Humedad Cabina"
             icon={<Droplets className="w-4 h-4 text-primary " />}
-            value={data.hr_in_mean !== null ? `${data.hr_in_mean} %` : "--"}
+            value={conUnidad(formatoValor(data.hr_in_mean, 0), "%")}
           />
         </div>
         {/* Fecha y hora actualizacion*/}
@@ -123,7 +139,7 @@ export default function DataGrid({ data }: { data: FullLocationData }) {
               <Card
                 key={contaminante.key}
                 className={cn(
-                  "relative p-5 overflow-hidden border border-border/40 backdrop-blur-3xl bg-gradient-to-br from-primary to-primary/90 transition-all duration-300 hover:shadow-md shadow-sm shadow-black/30 cursor-pointer",
+                  "relative p-5 overflow-hidden border border-border/40 backdrop-blur-3xl bg-gradient-to-br from-primary to-primary/90 transition-all duration-300 hover:shadow-md shadow-sm shadow-black/30",
                   status == null ? "hidden" : "",
                   value == null
                     ? "brightness-90 text-primary-foreground/60"
@@ -143,7 +159,7 @@ export default function DataGrid({ data }: { data: FullLocationData }) {
                       statusColor,
                     )}
                   >
-                    {value ?? "--"}
+                    {formatoValor(value, contaminante.decimales)}
                   </div>
                 </CardContent>
 
@@ -168,7 +184,7 @@ export default function DataGrid({ data }: { data: FullLocationData }) {
       </section>
 
       {/* Meteorologica Title */}
-      <section className="my-6 space-y-4" aria-label="Meteorologica">
+      <section className="my-6 space-y-4" aria-label="Meteorológica">
         <div className="flex items-center gap-3">
           <div className="w-1 h-6 rounded-full bg-primary" />
           <h2 className="text-xl font-semibold text-foreground uppercase tracking-wider">
@@ -183,7 +199,7 @@ export default function DataGrid({ data }: { data: FullLocationData }) {
             return (
               <Card
                 key={meteo.key}
-                className="relative py-3 px-5 overflow-hidden border border-primary/60 bg-gradient-to-br from-secondary/20 to-secondary/50 backdrop-blur-sm transition-all duration-300 hover:shadow-md shadow-sm shadow-black/30 cursor-pointer"
+                className="relative py-3 px-5 overflow-hidden border border-primary/60 bg-gradient-to-br from-secondary/20 to-secondary/50 backdrop-blur-sm transition-all duration-300 hover:shadow-md shadow-sm shadow-black/30"
               >
                 <CardTitle className="text-sm font-semibold text-primary">
                   {meteo.nombre}
@@ -196,7 +212,7 @@ export default function DataGrid({ data }: { data: FullLocationData }) {
                       value == null ? "text-primary/70" : "text-primary",
                     )}
                   >
-                    {value ?? "--"}{" "}
+                    {formatoValor(value, meteo.decimales)}{" "}
                     <span className="text-xs">{meteo.unidad}</span>
                   </div>
                 </CardContent>

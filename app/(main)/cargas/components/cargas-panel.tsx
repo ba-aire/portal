@@ -92,9 +92,9 @@ export default function CargasPanel({
 
       <div className="flex flex-wrap items-end gap-4">
         <div className="grid gap-1.5">
-          <Label>Estación</Label>
+          <Label htmlFor="carga-estacion">Estación</Label>
           <Select value={estacion} onValueChange={setEstacion}>
-            <SelectTrigger className="w-48 bg-white">
+            <SelectTrigger id="carga-estacion" className="w-48 bg-white">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -108,12 +108,12 @@ export default function CargasPanel({
           </Select>
         </div>
         <div className="grid gap-1.5">
-          <Label>Mostrar</Label>
+          <Label htmlFor="carga-estado">Mostrar</Label>
           <Select
             value={estado}
             onValueChange={(v) => setEstado(v as "vigentes" | "todas")}
           >
-            <SelectTrigger className="w-48 bg-white">
+            <SelectTrigger id="carga-estado" className="w-48 bg-white">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

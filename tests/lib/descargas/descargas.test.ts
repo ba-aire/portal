@@ -12,12 +12,6 @@ vi.mock("@/app/(main)/descargas/components/filters", () => ({
     { label: "Minutales", value: "minute" },
     { label: "Horarios", value: "hour" },
   ],
-  locationOptions: [
-    { label: "Centenario", value: "centenario" },
-    { label: "La Boca", value: "catalinas" },
-    { label: "Cordoba", value: "cordoba" },
-    { label: "Cifa", value: "cifa" },
-  ],
 }));
 
 import {
