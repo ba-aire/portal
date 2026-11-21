@@ -1,10 +1,10 @@
 import {
-  BadgeCheck,
   ChartLine,
   Download,
   FileChartColumn,
   MapPinned,
   Upload,
+  UserRoundCheck,
   Wind,
 } from "lucide-react";
 import { CODIGOS_ESTACION, ESTACIONES, urlEstacion } from "@/lib/estaciones";
@@ -59,7 +59,7 @@ export const validacion = [
   {
     title: "Validación",
     url: "/validacion",
-    icon: BadgeCheck,
+    icon: UserRoundCheck,
   },
 ];
 

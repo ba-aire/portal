@@ -9,6 +9,45 @@
  * @since 2026-03-11
  */
 
+/**
+ * Sufijo del conteo de minutos K de cada grupo en la hora (`nox_k_count`): un
+ * entero de 0 a 60, que se muestra sin decimales en la tabla, el CSV y el Excel.
+ */
+export const SUFIJO_CONTEO_K = "_k_count";
+export const esConteoK = (columna: string) => columna.endsWith(SUFIJO_CONTEO_K);
+
+// Decimales de cada métrica, según la precisión del instrumento. Los usan la
+// tabla de la página, el CSV y el Excel, para que muestren lo mismo.
+const DECIMALES_POR_METRICA: Record<string, number> = {
+  co: 3,
+  no: 2,
+  no2: 2,
+  nox: 2,
+  so2: 2,
+  o3: 2,
+  // Material particulado, en µg/m³: un decimal.
+  pm10: 1,
+  pm25: 1,
+  dv: 1,
+  vv: 1,
+  temp: 1,
+  hr: 1,
+  pa: 1,
+  uv: 1,
+  lluvia: 1,
+  rs: 1,
+};
+
+/**
+ * Decimales con que se muestra una columna numérica (`co`, `pm10_raw`,
+ * `nox_k_count`), o `undefined` si no es de una métrica conocida.
+ */
+export function decimalesDe(columna: string): number | undefined {
+  if (esConteoK(columna)) return 0;
+  const base = columna.endsWith("_raw") ? columna.slice(0, -4) : columna;
+  return DECIMALES_POR_METRICA[base];
+}
+
 export const TABLE_CONFIG = {
   nox: { metrics: ["no", "no2", "nox"] },
   co: { metrics: ["co"] },

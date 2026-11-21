@@ -138,7 +138,7 @@ const FILA: DataRow = {
   co: 1.23456,
   no2: 9.87654,
   temp: 20.55,
-  co_k_status: 58,
+  co_k_count: 58,
 };
 
 describe("generateFilename", () => {
@@ -309,10 +309,35 @@ describe("downloadAsCSV", () => {
   });
 
   describe("columnas de estado según la integración", () => {
-    it("usa _k_status en la integración horaria", async () => {
+    it("usa _k_count en la integración horaria", async () => {
       downloadAsCSV([FILA], "x.csv", "hour");
 
-      expect((await filasCSV())[0]).toContain("Co_k_status");
+      expect((await filasCSV())[0]).toContain("Co_k_count");
+    });
+
+    it("escribe PM10 con un decimal y CO con tres", async () => {
+      downloadAsCSV(
+        [{ time: FILA.time, co: 1.23456, pm10: 56.789 }],
+        "x.csv",
+        "hour",
+      );
+
+      const [, fila] = await filasCSV();
+      expect(fila).toContain(",1.235");
+      expect(fila).toMatch(/,56\.8(,|$)/);
+    });
+
+    it("escribe el conteo de minutos K sin decimales", async () => {
+      downloadAsCSV(
+        [{ time: FILA.time, co: 1.5, co_k_count: 58 }],
+        "x.csv",
+        "hour",
+      );
+
+      // La fecha va entrecomillada y lleva comas: se busca el valor suelto.
+      const [, fila] = await filasCSV();
+      expect(fila).toMatch(/,58(,|$)/);
+      expect(fila).not.toContain("58.000");
     });
 
     // El CSV es una sola tabla, así que lleva las dos series lado a lado: la
@@ -327,14 +352,14 @@ describe("downloadAsCSV", () => {
     });
 
     it("usa _status en la integración minutal", async () => {
-      // Sin co_k_status en los datos: getOrderedColumns arrastra al final
+      // Sin co_k_count en los datos: getOrderedColumns arrastra al final
       // cualquier campo presente que no esté en TABLE_CONFIG, y ese arrastre
       // enmascararía lo que se quiere verificar acá.
       downloadAsCSV([{ time: FILA.time, co: 1 }], "x.csv", "minute");
 
       const encabezado = (await filasCSV())[0];
       expect(encabezado).toContain("Co_status");
-      expect(encabezado).not.toContain("Co_k_status");
+      expect(encabezado).not.toContain("Co_k_count");
     });
 
     // Si el llamador no dice qué integración pidió, se deduce de los datos:
@@ -455,7 +480,7 @@ describe("downloadAsExcel", () => {
   // validados el promedio construido sólo con los minutos de status k.
   it("separa el promedio crudo del validado en su hoja correspondiente", async () => {
     await downloadAsExcel(
-      [{ time: FILA.time, co: 1.111, co_raw: 2.222, co_k_status: 58 }],
+      [{ time: FILA.time, co: 1.111, co_raw: 2.222, co_k_count: 58 }],
       "x.xlsx",
       "hour",
     );
@@ -463,6 +488,36 @@ describe("downloadAsExcel", () => {
     const workbook = await excelDescargado();
     expect(celdaDe(hojaDe(workbook, "crudos"), "co").value).toBe(2.222);
     expect(celdaDe(hojaDe(workbook, "validados"), "co").value).toBe(1.111);
+  });
+
+  // El conteo de minutos K es un entero de 0 a 60: sin los tres decimales de
+  // las concentraciones, ni en el valor ni en el formato de la celda.
+  it("escribe el conteo de minutos K como entero en crudos", async () => {
+    await downloadAsExcel(
+      [{ time: FILA.time, co: 1.111, co_raw: 2.222, co_k_count: 58 }],
+      "x.xlsx",
+      "hour",
+    );
+
+    const celda = celdaDe(
+      hojaDe(await excelDescargado(), "crudos"),
+      "co_k_count",
+    );
+    expect(celda.value).toBe(58);
+    expect(celda.numFmt).toBe("0");
+  });
+
+  it("escribe PM10 y PM2.5 con un decimal", async () => {
+    await downloadAsExcel(
+      [{ time: FILA.time, pm10: 56.789, pm10_raw: 57.123, pm25: 23.456 }],
+      "x.xlsx",
+      "hour",
+    );
+
+    const hoja = hojaDe(await excelDescargado(), "validados");
+    expect(celdaDe(hoja, "pm10").value).toBe(56.8);
+    expect(celdaDe(hoja, "pm10").numFmt).toBe("0.0");
+    expect(celdaDe(hoja, "pm25").value).toBe(23.5);
   });
 
   // Una hora cargada a mano (V19): un promedio ya validado que no sale de los
@@ -474,7 +529,7 @@ describe("downloadAsExcel", () => {
       no: 5.26,
       no2: 13.84,
       nox_status: "H,K",
-      nox_k_status: 10,
+      nox_k_count: 10,
       cargadas: "no",
     };
 
@@ -493,7 +548,7 @@ describe("downloadAsExcel", () => {
       const hoja = hojaDe(await excelDescargado(), "crudos");
       expect(colorDeFondo(celdaDe(hoja, "nox_status"))).toBe("FFDDEBF7");
       // El conteo de minutos K es lo medido: conserva su aviso.
-      expect(colorDeFondo(celdaDe(hoja, "nox_k_status"))).toBe("FFFFEB9C");
+      expect(colorDeFondo(celdaDe(hoja, "nox_k_count"))).toBe("FFFFEB9C");
     });
 
     // La planilla general recibe la hoja validados pegada: ni una columna más.
@@ -541,7 +596,7 @@ describe("downloadAsExcel", () => {
     // está armada con pocos minutos.
     it("resalta el promedio de una hora con menos de 45 minutos válidos", async () => {
       await downloadAsExcel(
-        [{ time: FILA.time, co: 1.5, co_k_status: 44 }],
+        [{ time: FILA.time, co: 1.5, co_k_count: 44 }],
         "x.xlsx",
         "hour",
       );
@@ -552,7 +607,7 @@ describe("downloadAsExcel", () => {
 
     it("no resalta una hora con respaldo suficiente", async () => {
       await downloadAsExcel(
-        [{ time: FILA.time, co: 1.5, co_k_status: 45 }],
+        [{ time: FILA.time, co: 1.5, co_k_count: 45 }],
         "x.xlsx",
         "hour",
       );
@@ -565,7 +620,7 @@ describe("downloadAsExcel", () => {
     // k, así que resaltarlo sería engañoso. La marca va sobre el conteo.
     it("no resalta el promedio crudo aunque falten minutos válidos", async () => {
       await downloadAsExcel(
-        [{ time: FILA.time, co: 1.5, co_raw: 2, co_k_status: 10 }],
+        [{ time: FILA.time, co: 1.5, co_raw: 2, co_k_count: 10 }],
         "x.xlsx",
         "hour",
       );
@@ -578,24 +633,24 @@ describe("downloadAsExcel", () => {
     // marcarlo evita tener que comparar 60 columnas contra el umbral a ojo.
     it("resalta en crudos el conteo de minutos k por debajo de 45", async () => {
       await downloadAsExcel(
-        [{ time: FILA.time, co_raw: 2, co_k_status: 44 }],
+        [{ time: FILA.time, co_raw: 2, co_k_count: 44 }],
         "x.xlsx",
         "hour",
       );
 
       const hoja = hojaDe(await excelDescargado(), "crudos");
-      expect(colorDeFondo(celdaDe(hoja, "co_k_status"))).toBe("FFFFEB9C");
+      expect(colorDeFondo(celdaDe(hoja, "co_k_count"))).toBe("FFFFEB9C");
     });
 
     it("no resalta el conteo cuando la hora tiene respaldo suficiente", async () => {
       await downloadAsExcel(
-        [{ time: FILA.time, co_raw: 2, co_k_status: 45 }],
+        [{ time: FILA.time, co_raw: 2, co_k_count: 45 }],
         "x.xlsx",
         "hour",
       );
 
       const hoja = hojaDe(await excelDescargado(), "crudos");
-      expect(colorDeFondo(celdaDe(hoja, "co_k_status"))).toBeUndefined();
+      expect(colorDeFondo(celdaDe(hoja, "co_k_count"))).toBeUndefined();
     });
   });
 

@@ -1,5 +1,5 @@
 import { FILA, FILA_ENCABEZADO, TABLA, TD, TH } from "@/components/tabla-datos";
-import { TABLE_CONFIG } from "@/lib/descargas/config";
+import { decimalesDe, TABLE_CONFIG } from "@/lib/descargas/config";
 import type { DataPoint } from "@/lib/descargas/models";
 import { nombreSerie } from "@/lib/estaciones";
 import { encabezadoPeriodo, formatPeriodo, type Periodo } from "@/lib/periodo";
@@ -35,9 +35,9 @@ export default function Table({ data, interval }: TableProps) {
     if (data.some((row) => statusField in row)) {
       orderedFields.push(statusField);
     }
-    const kStatusField = `${tableKey}_k_status`;
-    if (data.some((row) => kStatusField in row)) {
-      orderedFields.push(kStatusField);
+    const kCountField = `${tableKey}_k_count`;
+    if (data.some((row) => kCountField in row)) {
+      orderedFields.push(kCountField);
     }
   });
 
@@ -63,6 +63,7 @@ export default function Table({ data, interval }: TableProps) {
   // Helper function to format cell values
   const formatCellValue = (
     value: string | number | null | undefined,
+    columna: string,
   ): string => {
     if (value === null || value === undefined) {
       return "s/d";
@@ -77,9 +78,11 @@ export default function Table({ data, interval }: TableProps) {
     }
     // Handle number values
     if (typeof value === "number") {
+      // Los mismos decimales que el Excel (lib/descargas/config.ts).
+      const decimales = decimalesDe(columna) ?? 3;
       return value.toLocaleString("es-AR", {
-        minimumFractionDigits: 3,
-        maximumFractionDigits: 3,
+        minimumFractionDigits: decimales,
+        maximumFractionDigits: decimales,
       });
     }
     return String(value);
@@ -109,7 +112,7 @@ export default function Table({ data, interval }: TableProps) {
                 </td>
                 {locations.map((location) => (
                   <td key={location} className={TD}>
-                    {formatCellValue(row[location])}
+                    {formatCellValue(row[location], location)}
                   </td>
                 ))}
               </tr>
