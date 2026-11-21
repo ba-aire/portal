@@ -21,6 +21,7 @@ import {
   type Fuentes,
   STATUS_MINUTO,
 } from "@/lib/datos/series";
+import { formatInstanteCorto } from "@/lib/periodo";
 
 interface SeriesControlsProps {
   interval: string;
@@ -32,14 +33,6 @@ interface SeriesControlsProps {
   onFuentesChange: Dispatch<SetStateAction<Fuentes>>;
   procesadoHasta: string | null;
 }
-
-const formatoFecha = new Intl.DateTimeFormat("es-AR", {
-  day: "2-digit",
-  month: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "America/Argentina/Buenos_Aires",
-});
 
 const DETALLE_VALIDADOS_HORA =
   "Promedio horario publicado: solo minutos OK, y solo si la hora tiene al menos 45 de 60 minutos válidos (75 %). Las horas que no llegan al 75 % quedan sin dato.";
@@ -184,8 +177,7 @@ export default function SeriesControls({
       )}
       {procesadoHasta && (
         <span className="text-sm text-muted-foreground">
-          Datos procesados hasta las{" "}
-          {formatoFecha.format(new Date(procesadoHasta))}
+          Datos procesados hasta las {formatInstanteCorto(procesadoHasta)}
         </span>
       )}
     </div>
