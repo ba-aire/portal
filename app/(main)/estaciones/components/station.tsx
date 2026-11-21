@@ -4,42 +4,22 @@ import { AlertCircle, Loader2, WifiOff } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import useSSE from "@/hooks/useSSE";
 import { withBasePath } from "@/lib/base-path";
+import { claseFondoEstacion, nombreEstacion } from "@/lib/estaciones";
 import type { FullLocationData } from "@/lib/location/models";
 import { cn } from "@/lib/utils";
 import DataGrid from "./data-grid";
-
-function toTitle(location: string) {
-  if (!location) return "Estación";
-  if (location === "catalinas") return "La Boca";
-  return `${location}`;
-}
-
-const getLocationBgColor = (location: string) => {
-  switch (location) {
-    case "catalinas":
-      return "bg-catalinas";
-    case "cordoba":
-      return "bg-cordoba";
-    case "cifa":
-      return "bg-cifa";
-    case "centenario":
-      return "bg-centenario";
-    default:
-      return "bg-otra";
-  }
-};
 
 export default function Station({ location }: { location: string }) {
   const { data, error, status } = useSSE<FullLocationData>(
     withBasePath(`/api/${location}`),
   );
-  const bgColor = getLocationBgColor(location);
+  const bgColor = claseFondoEstacion(location);
   return (
     <div className="w-full h-full p-6 flex flex-col max-w-7xl mx-auto">
       <div className="flex items-center relative gap-3">
         <div className={cn(`w-1 h-6 rounded-full`, bgColor)} />
         <h1 className="text-2xl font-bold text-primary relative z-10 uppercase tracking-wider">
-          Estación {toTitle(location)}
+          Estación {nombreEstacion(location)}
         </h1>
       </div>
 

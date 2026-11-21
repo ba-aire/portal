@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
+import { CODIGOS_ESTACION, ESTACIONES, urlEstacion } from "@/lib/estaciones";
 
 export const metadata: Metadata = {
   title: "BA Aire - Estaciones",
@@ -15,10 +16,11 @@ export default function EstacionesPage() {
       </h1>
       <Card className="flex justify-center items-center max-w-[300px] mx-auto">
         <CardContent className="flex flex-col gap-4">
-          <Link href="/estaciones/centenario">Centenario</Link>
-          <Link href="/estaciones/catalinas">Catalinas</Link>
-          <Link href="/estaciones/cordoba">Córdoba</Link>
-          <Link href="/estaciones/cifa">CIFA</Link>
+          {CODIGOS_ESTACION.map((codigo) => (
+            <Link key={codigo} href={urlEstacion(codigo)}>
+              {ESTACIONES[codigo].nombre}
+            </Link>
+          ))}
         </CardContent>
       </Card>
     </div>

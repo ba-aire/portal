@@ -8,10 +8,8 @@
  */
 
 import { z } from "zod";
-import {
-  locationOptions,
-  promedioOptions,
-} from "@/app/(main)/descargas/components/filters";
+import { promedioOptions } from "@/app/(main)/descargas/components/filters";
+import { EstacionEnum, esEstacion } from "@/lib/estaciones";
 
 // ============================================================================
 // ENUMS Y TIPOS BASE
@@ -35,20 +33,18 @@ export type Contaminant = z.infer<typeof ContaminantEnum>;
 export const IntegrationEnum = z.enum(["minute", "hour"]);
 export type Integration = z.infer<typeof IntegrationEnum>;
 
-export const LocationEnum = z.enum([
-  "centenario",
-  "cordoba",
-  "catalinas",
-  "cifa",
-]);
-export type Location = z.infer<typeof LocationEnum>;
+// Estaciones válidas: lib/estaciones.ts.
+export {
+  type Estacion as Location,
+  EstacionEnum as LocationEnum,
+} from "@/lib/estaciones";
 
 // ============================================================================
 // SCHEMAS PARA VALIDACIÓN DE PETICIONES (API/SERVICE)
 // ============================================================================
 
 export const QueryParamsSchema = z.object({
-  location: LocationEnum.default("centenario"),
+  location: EstacionEnum.default("centenario"),
   startDate: z
     .string()
     .refine((s) => !Number.isNaN(Date.parse(s)), {
@@ -166,11 +162,9 @@ export const filtrosSchema = z
       .refine((v) => promedioOptions.some((o) => o.value === v), {
         message: "Seleccioná un tipo de integración.",
       }),
-    location: z
-      .string()
-      .refine((s) => locationOptions.some((o) => o.value === s), {
-        message: "Seleccioná una estación válida.",
-      }),
+    location: z.string().refine(esEstacion, {
+      message: "Seleccioná una estación válida.",
+    }),
     startDate: z.preprocess(
       (arg) => {
         if (arg instanceof Date) return arg;

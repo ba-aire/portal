@@ -81,7 +81,7 @@ describe("DatosService.getDatosPorContaminante", () => {
       data: [],
       meta: {
         contaminant: "co",
-        locations: ["centenario", "cordoba", "catalinas", "cifa"],
+        locations: ["centenario", "catalinas", "cordoba", "cifa"],
         startDate: "2025-07-29T00:00:00Z",
         endDate: "2025-07-30T00:00:00Z",
         interval: "hour",
@@ -94,7 +94,7 @@ describe("DatosService.getDatosPorContaminante", () => {
     expect(fetchDatosPorContaminante).toHaveBeenCalledWith(
       expect.objectContaining({
         contaminant: "co",
-        locations: ["centenario", "cordoba", "catalinas", "cifa"],
+        locations: ["centenario", "catalinas", "cordoba", "cifa"],
         interval: "hour",
       }),
     );
@@ -135,8 +135,8 @@ describe("DatosService.getDatosPorContaminante", () => {
     ]);
     expect(datosService.getAvailableLocations()).toEqual([
       "centenario",
-      "cordoba",
       "catalinas",
+      "cordoba",
       "cifa",
     ]);
   });
@@ -149,8 +149,8 @@ describe("QueryParamsSchema (datos)", () => {
     expect(parsed.interval).toBe("hour");
     expect(parsed.locations).toEqual([
       "centenario",
-      "cordoba",
       "catalinas",
+      "cordoba",
       "cifa",
     ]);
   });

@@ -3,6 +3,7 @@ import {
   contaminantesOptions,
   promedioOptions,
 } from "@/app/(main)/datos/contaminante/components/filters";
+import { CODIGOS_ESTACION, EstacionEnum } from "@/lib/estaciones";
 
 // ============================================================================
 // ENUMS Y TIPOS BASE
@@ -28,13 +29,11 @@ export type Contaminant = z.infer<typeof ContaminantEnum>;
 export const IntervalEnum = z.enum(["minute", "hour", "mov8h", "mov24h"]);
 export type Interval = z.infer<typeof IntervalEnum>;
 
-export const LocationEnum = z.enum([
-  "centenario",
-  "cordoba",
-  "catalinas",
-  "cifa",
-]);
-export type Location = z.infer<typeof LocationEnum>;
+// Estaciones válidas: lib/estaciones.ts.
+export {
+  type Estacion as Location,
+  EstacionEnum as LocationEnum,
+} from "@/lib/estaciones";
 
 // ============================================================================
 // SCHEMAS DE REQUEST/RESPONSE
@@ -47,8 +46,8 @@ export const QueryParamsSchema = z.object({
   locations: z
     .string()
     .transform((val) => val.split(",").map((loc) => loc.trim()))
-    .pipe(z.array(LocationEnum).nonempty())
-    .default(["centenario", "cordoba", "catalinas", "cifa"]),
+    .pipe(z.array(EstacionEnum).nonempty())
+    .default([...CODIGOS_ESTACION]),
   startDate: z
     .string()
     .refine((s) => !Number.isNaN(Date.parse(s)), {

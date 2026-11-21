@@ -1,3 +1,4 @@
+import { CODIGOS_ESTACION } from "@/lib/estaciones";
 import {
   BoundedQueryParamsSchema,
   DataPointSchema,
@@ -91,7 +92,7 @@ export class DatosService {
    * Obtiene información sobre las ubicaciones disponibles
    */
   getAvailableLocations(): string[] {
-    return ["centenario", "cordoba", "catalinas", "cifa"];
+    return [...CODIGOS_ESTACION];
   }
 }
 // Exportar instancia singleton

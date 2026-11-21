@@ -22,6 +22,7 @@ import {
   seriesDe,
   seriesDeUnaFuente,
 } from "@/lib/datos/series";
+import { colorSerie, nombreSerie } from "@/lib/estaciones";
 
 interface ChartProps {
   data: Record<string, string | number | null>[];
@@ -67,39 +68,9 @@ export default function Chart({ data }: ChartProps) {
   // que haya): apilar varias sumaria dos veces la misma concentracion.
   const areaSeries = seriesDeUnaFuente(locations);
 
-  // Colores predefinidos para cada estación
-  const stationColor: Record<string, string> = {
-    centenario: "var(--color-centenario)",
-    "centenario NO": "var(--color-centenario-no)",
-    "centenario NO2": "var(--color-centenario-no2)",
-    "centenario NOx": "var(--color-centenario-nox)",
-    cordoba: "var(--color-cordoba)",
-    "cordoba NO": "var(--color-cordoba-no)",
-    "cordoba NO2": "var(--color-cordoba-no2)",
-    "cordoba NOx": "var(--color-cordoba-nox)",
-    catalinas: "var(--color-catalinas)",
-    "catalinas NO": "var(--color-catalinas-no)",
-    "catalinas NO2": "var(--color-catalinas-no2)",
-    "catalinas NOx": "var(--color-catalinas-nox)",
-    cifa: "var(--color-cifa)",
-    "cifa NO": "var(--color-cifa-no)",
-    "cifa NO2": "var(--color-cifa-no2)",
-    "cifa NOx": "var(--color-cifa-nox)",
-    "centenario PM10": "#006449",
-    "centenario PM25": "#4a9477",
-    "cordoba PM10": "#d03156",
-    "cordoba PM25": "#e27a8f",
-    "catalinas PM10": "#008ebd",
-    "catalinas PM25": "#4db8d9",
-    "cifa PM10": "#7b30b5",
-    "cifa PM25": "#a878c4",
-    otra: "var(--color-otra)",
-  };
-
-  // Todas las fuentes de una estacion llevan su color; las crudas van con otro
-  // trazo para distinguirlas de los validados.
-  const color = (serie: string) =>
-    stationColor[serieBase(serie)] ?? "var(--color-otra)";
+  // Todas las fuentes de una estacion llevan su color (lib/estaciones.ts); las
+  // crudas van con otro trazo para distinguirlas de los validados.
+  const color = (serie: string) => colorSerie(serieBase(serie));
 
   const TRAZO_CRUDA: Record<FuenteCruda, string> = {
     crudo: "2 3",
@@ -112,16 +83,9 @@ export default function Chart({ data }: ChartProps) {
     return serie.includes("NOx") ? "4 7" : "4 0";
   };
 
-  const displayName = (location: string) => {
-    let label = location;
-    if (label === "catalinas" || label.startsWith("catalinas ")) {
-      label = label.replace(/^catalinas/, "La Boca");
-    } else {
-      label = label.charAt(0).toUpperCase() + label.slice(1);
-    }
-    // Mostrar "PM2.5" al usuario aunque la clave interna sea "PM25"
-    return label.replace(/\bPM25\b/, "PM2.5");
-  };
+  // Mostrar "PM2.5" al usuario aunque la clave interna sea "PM25"
+  const displayName = (location: string) =>
+    nombreSerie(location).replace(/\bPM25\b/, "PM2.5");
 
   // Una hora cargada a mano se dibuja con un punto hueco sobre su serie: el
   // resto de la linea no lleva puntos. Recharts pide devolver siempre un nodo.
