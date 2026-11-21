@@ -2,6 +2,7 @@
 
 import { AlertCircle, Loader2 } from "lucide-react";
 import { useState } from "react";
+import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import useFetchIca from "@/hooks/useFetchIca";
@@ -161,14 +162,10 @@ export default function IcaPanel() {
   return (
     <div className="flex h-full w-full flex-col gap-4 p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-col">
-          <h2 className="text-2xl font-bold tracking-tight text-primary">
-            Índice de calidad del aire
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {INDICES[indice].descripcion}
-          </p>
-        </div>
+        <PageHeader
+          title="Índice de calidad del aire"
+          description={INDICES[indice].descripcion}
+        />
 
         {/* Los dos índices no se mezclan: se elige uno y toda la pantalla
             (colores, categorías, leyenda) es de ese. */}

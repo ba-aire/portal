@@ -6,6 +6,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import HourRangeSelect from "@/components/hour-range-select";
+import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -40,13 +41,13 @@ export interface FiltrosType {
 
 export const contaminantesOptions = [
   { label: "CO", value: "co" },
-  { label: "NO2 Solo", value: "no2" },
-  { label: "NOx Totales", value: "nox" },
-  { label: "PM10", value: "pm10" },
-  { label: "PM2.5", value: "pm25" },
-  { label: "PM10 y 2.5", value: "pm1025" },
-  { label: "O3", value: "o3" },
-  { label: "SO2", value: "so2" },
+  { label: "NO₂ solo", value: "no2" },
+  { label: "NOₓ totales", value: "nox" },
+  { label: "PM₁₀", value: "pm10" },
+  { label: "PM₂.₅", value: "pm25" },
+  { label: "PM₁₀ y PM₂.₅", value: "pm1025" },
+  { label: "O₃", value: "o3" },
+  { label: "SO₂", value: "so2" },
 ];
 
 export const promedioOptions = [
@@ -197,16 +198,12 @@ export default function Filtros({
 
   return (
     <div className="p-2">
-      <header className="mb-10">
-        <h1 className="text-2xl font-bold text-primary text-center relative z-10 uppercase tracking-wider mb-2">
-          Datos de Calidad del Aire
-        </h1>
-        <h2 className="text-primary/70 text-center font-semibold">
-          Seleccioná el contaminante, el tipo de integración y el rango de
-          fechas para consultar los datos. Los datos minutales se consultan de a
-          un día, con la franja horaria que elijas.
-        </h2>
-      </header>
+      <PageHeader
+        centrado
+        className="mb-10"
+        title="Datos de Calidad del Aire"
+        description="Seleccioná el contaminante, el tipo de integración y el rango de fechas para consultar los datos. Los datos minutales se consultan de a un día, con la franja horaria que elijas."
+      />
       <div className="flex flex-col flex-wrap md:flex-row gap-4 items-center justify-center text-primary">
         {/* Select contaminante (metrica) */}
         <div className="flex flex-col gap-3">
@@ -295,6 +292,7 @@ export default function Filtros({
                           toggleLocation(opt.value, Boolean(val))
                         }
                         id={`loc-${opt.value}`}
+                        aria-label={opt.label}
                       />
                       <span className="text-sm">{opt.label}</span>
                     </label>
@@ -303,8 +301,7 @@ export default function Filtros({
               </div>
               <SelectSeparator className="my-2" />
               <div className="text-xs text-primary">
-                Para métrica &quot;NOx Totales&quot; seleccionar una sola
-                estación
+                Para la métrica &quot;NOₓ totales&quot;, elegí una sola estación
               </div>
             </PopoverContent>
           </Popover>

@@ -1,8 +1,9 @@
 "use client";
-import { AlertCircle, FileWarning, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { useMemo, useState } from "react";
 import type { FiltrosType } from "@/app/(main)/datos/contaminante/components/filters";
+import { SinDatos } from "@/components/sin-datos";
 import SonnerToaster from "@/components/sonner-toaster";
 import useFetchDatos from "@/hooks/useFetchDatos";
 import { withBasePath } from "@/lib/base-path";
@@ -11,6 +12,7 @@ import {
   type Fuentes,
   filtrarSeries,
   STATUS_MINUTO,
+  tieneValores,
 } from "@/lib/datos/series";
 import type { Periodo } from "@/lib/periodo";
 import Chart from "./components/chart";
@@ -40,6 +42,11 @@ export default function CrudosPage() {
         : data,
     [data, filters.interval, statuses, fuentes],
   );
+
+  const conValores = Array.isArray(data) && tieneValores(data);
+  // Lo que hay puede estar todo en columnas apagadas (sin validados todavía, y
+  // los crudos ocultos por defecto): en vez de un gráfico vacío, se avisa.
+  const visiblesConValores = Array.isArray(visibles) && tieneValores(visibles);
 
   const handleFetch = (newFilters: FiltrosType) => {
     setFilters(newFilters);
@@ -75,7 +82,7 @@ export default function CrudosPage() {
           <p className="text-destructive/80 mb-6 max-w-lg text-lg">{error}</p>
         </div>
       )}
-      {Array.isArray(data) && data.length > 0 && !isLoading && !error && (
+      {conValores && !isLoading && !error && (
         <>
           <SeriesControls
             interval={filters.interval}
@@ -85,19 +92,24 @@ export default function CrudosPage() {
             onFuentesChange={setFuentes}
             procesadoHasta={procesadoHasta}
           />
-          <Chart data={visibles ?? []} />
-          <Table data={visibles ?? []} interval={filters.interval as Periodo} />
+          {visiblesConValores ? (
+            <>
+              <Chart data={visibles ?? []} />
+              <Table
+                data={visibles ?? []}
+                interval={filters.interval as Periodo}
+              />
+            </>
+          ) : (
+            <SinDatos
+              titulo="No hay datos para lo que elegiste mostrar"
+              sugerencia="En este rango no hay datos validados. Elegí columnas crudas para ver lo medido."
+            />
+          )}
         </>
       )}
-      {Array.isArray(data) && data.length === 0 && !isLoading && !error && (
-        <div className="w-full h-full flex flex-col items-center justify-center text-center">
-          <div className="p-6 bg-destructive/10 rounded-full mb-6 shadow-lg">
-            <FileWarning className="w-16 h-16 text-yellow-500" />
-          </div>
-          <h3 className="text-2xl font-bold text-yellow-500 mb-3">
-            No se encontraron datos.
-          </h3>
-        </div>
+      {Array.isArray(data) && !conValores && !isLoading && !error && (
+        <SinDatos />
       )}
       {data === undefined && !isLoading && !error && (
         <div className="w-full h-full flex flex-col items-center justify-center text-center">

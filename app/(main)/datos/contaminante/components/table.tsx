@@ -1,3 +1,4 @@
+import { FILA, FILA_ENCABEZADO, TABLA, TD, TH } from "@/components/tabla-datos";
 import { ordenarSeries, SUFIJO_CARGADA, seriesDe } from "@/lib/datos/series";
 import { nombreSerie } from "@/lib/estaciones";
 import { encabezadoPeriodo, formatPeriodo, type Periodo } from "@/lib/periodo";
@@ -38,12 +39,14 @@ export default function Table({ data, interval }: TableProps) {
           en línea (ver Carga de datos).
         </p>
       )}
-      <table className="min-w-full border text-sm">
+      <table className={TABLA}>
         <thead>
-          <tr className="bg-gray-100">
-            <th className="border px-2 py-1">{encabezadoPeriodo(interval)}</th>
+          <tr className={FILA_ENCABEZADO}>
+            <th scope="col" className={TH}>
+              {encabezadoPeriodo(interval)}
+            </th>
             {locations.map((location) => (
-              <th key={location} className="border px-2 py-1 capitalize">
+              <th key={location} scope="col" className={TH}>
                 {displayName(location)}
               </th>
             ))}
@@ -52,8 +55,8 @@ export default function Table({ data, interval }: TableProps) {
         <tbody>
           {data.map((row) => {
             return (
-              <tr key={String(row.time)}>
-                <td className="border px-2 py-1 text-center whitespace-nowrap">
+              <tr key={String(row.time)} className={FILA}>
+                <td className={`${TD} whitespace-nowrap`}>
                   {formatPeriodo(String(row.time), interval)}
                 </td>
                 {locations.map((location) => {
@@ -61,11 +64,14 @@ export default function Table({ data, interval }: TableProps) {
                   return (
                     <td
                       key={location}
-                      className={`border px-2 py-1 text-center${cargada ? " bg-sky-100" : ""}`}
+                      className={`${TD}${cargada ? " bg-sky-100" : ""}`}
                       title={cargada ? "Hora cargada a mano" : undefined}
                     >
                       {row[location] !== null && row[location] !== undefined
-                        ? Number(row[location]).toFixed(3)
+                        ? Number(row[location]).toLocaleString("es-AR", {
+                            minimumFractionDigits: 3,
+                            maximumFractionDigits: 3,
+                          })
                         : "s/d"}
                     </td>
                   );

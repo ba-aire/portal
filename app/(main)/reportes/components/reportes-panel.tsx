@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useTransition } from "react";
+import { PageHeader } from "@/components/page-header";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -56,18 +57,15 @@ export default function ReportesPanel({
 
   return (
     <div className="p-2">
-      <header className="mb-10">
-        <h1 className="text-2xl font-bold text-primary text-center relative z-10 uppercase tracking-wider mb-2">
-          Reportes
-        </h1>
-        <h2 className="text-primary/70 text-center font-semibold">
-          Elegí la plantilla del reporte y completá sus filtros. Se arma con los
-          datos validados; la vista previa es igual al PDF que se descarga.
-        </h2>
-      </header>
+      <PageHeader
+        centrado
+        className="mb-10"
+        title="Reportes"
+        description="Elegí la plantilla del reporte y completá sus filtros. Se arma con los datos validados; la vista previa es igual al PDF que se descarga."
+      />
 
-      <div className="mb-6 flex justify-center text-primary">
-        <div className="flex flex-col gap-3">
+      <div className="mx-auto mb-6 flex w-full max-w-sm justify-center text-primary md:max-w-none">
+        <div className="flex w-full flex-col gap-3 md:w-auto">
           <Label htmlFor="reporte" className="px-1">
             Plantilla del reporte
           </Label>
@@ -76,7 +74,7 @@ export default function ReportesPanel({
             onValueChange={elegir}
             disabled={cambiando}
           >
-            <SelectTrigger id="reporte" className="w-[300px]">
+            <SelectTrigger id="reporte" className="w-full md:w-[300px]">
               <SelectValue placeholder="Seleccioná la plantilla del reporte" />
             </SelectTrigger>
             <SelectContent>
