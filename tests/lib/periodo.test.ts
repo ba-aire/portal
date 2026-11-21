@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { encabezadoPeriodo, formatPeriodo } from "@/lib/periodo";
+import {
+  encabezadoPeriodo,
+  formatInstanteCorto,
+  formatNumero,
+  formatPeriodo,
+} from "@/lib/periodo";
 
 // airedb rotula por el INICIO del período, en UTC; el portal muestra hora
 // argentina (UTC-3) y, para la hora, el rango [inicio, fin) que cubre.
@@ -43,5 +48,33 @@ describe("encabezadoPeriodo", () => {
     expect(encabezadoPeriodo("mov8h")).toBe(
       "Fecha y hora (fin de las últimas 8 h)",
     );
+  });
+});
+
+describe("formatInstanteCorto", () => {
+  it("rotula el eje con día/mes y hora de 24 hs, en hora argentina", () => {
+    expect(formatInstanteCorto("2026-11-21T11:00:00Z")).toBe("21/11, 08:00");
+    expect(formatInstanteCorto("2026-11-21T20:30:00Z")).toBe("21/11, 17:30");
+  });
+
+  it("muestra la medianoche como 00:00, no 24:00 ni 12 a. m.", () => {
+    expect(formatInstanteCorto("2026-11-22T03:00:00Z")).toBe("22/11, 00:00");
+  });
+
+  it("devuelve tal cual lo que no es una fecha", () => {
+    expect(formatInstanteCorto("s/d")).toBe("s/d");
+  });
+});
+
+describe("formatNumero", () => {
+  it("usa coma decimal y punto de miles, sin ceros de relleno", () => {
+    expect(formatNumero(2.25)).toBe("2,25");
+    expect(formatNumero(1234.5)).toBe("1.234,5");
+    expect(formatNumero(40)).toBe("40");
+  });
+
+  it("corta en los decimales pedidos", () => {
+    expect(formatNumero(0.123456)).toBe("0,123");
+    expect(formatNumero(0.123456, 1)).toBe("0,1");
   });
 });

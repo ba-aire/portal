@@ -22,6 +22,11 @@ import {
   seriesDe,
   seriesDeUnaFuente,
 } from "@/lib/datos/series";
+import {
+  formatInstante,
+  formatInstanteCorto,
+  formatNumero,
+} from "@/lib/periodo";
 
 interface ChartProps {
   data: Record<string, string | number | null>[];
@@ -159,17 +164,17 @@ export default function Chart({ data }: ChartProps) {
     Object.keys(row).some((k) => k.endsWith(SUFIJO_CARGADA) && row[k]),
   );
 
+  // Tooltip: fecha completa en 24 hs y valores con coma decimal, como la tabla.
+  const etiquetaTooltip = (label: unknown) =>
+    formatInstante(new Date(String(label)));
+  const valorTooltip = (value: unknown) =>
+    typeof value === "number" ? formatNumero(value) : String(value ?? "");
+
   // Mapeo los datos para el gráfico
   const chartData = data.map((row) => {
+    // El instante viaja en ISO: el eje lo rotula corto y el tooltip, completo.
     const mappedRow: Record<string, string | number | null> = {
-      timestamp: new Intl.DateTimeFormat("es-AR", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZone: "America/Argentina/Buenos_Aires",
-      }).format(new Date(String(row.time))),
+      timestamp: String(row.time),
     };
 
     locations.forEach((location) => {
@@ -215,9 +220,15 @@ export default function Chart({ data }: ChartProps) {
             }}
           />
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="timestamp" tick={{ fontSize: 12 }}></XAxis>
-          <YAxis />
+          <XAxis
+            dataKey="timestamp"
+            tick={{ fontSize: 12 }}
+            tickFormatter={formatInstanteCorto}
+          />
+          <YAxis tickFormatter={(v: number) => formatNumero(v)} />
           <Tooltip
+            labelFormatter={etiquetaTooltip}
+            formatter={valorTooltip}
             itemSorter={(item) => {
               const name = typeof item.name === "string" ? item.name : "";
               if (name.includes("NO2")) return 2;
@@ -269,9 +280,15 @@ export default function Chart({ data }: ChartProps) {
             }}
           />
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="timestamp" tick={{ fontSize: 12 }}></XAxis>
-          <YAxis />
+          <XAxis
+            dataKey="timestamp"
+            tick={{ fontSize: 12 }}
+            tickFormatter={formatInstanteCorto}
+          />
+          <YAxis tickFormatter={(v: number) => formatNumero(v)} />
           <Tooltip
+            labelFormatter={etiquetaTooltip}
+            formatter={valorTooltip}
             itemSorter={(item) => {
               const name = typeof item.name === "string" ? item.name : "";
               if (name.includes("NO2")) return 2;
