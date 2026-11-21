@@ -77,7 +77,10 @@ API routes validate query params with Zod. Services call repositories; request v
 - **Tailwind CSS v4** for styling
 - **Chart.js / Recharts** for pollutant data charts
 - **Mapbox GL / MapLibre GL** for station maps
-- Data tables (`/datos`, `/descargas`) are plain `<table>` elements, no table library
+- Data tables (`/datos`, `/descargas`) are plain `<table>` elements, no table library, styled with the classes in `components/tabla-datos.ts` (brand-blue header, zebra rows, comma decimals)
+- Every page title is `components/page-header.tsx` (one `h1`, the description as a paragraph; `centrado` on filter pages). An empty result is `components/sin-datos.tsx` (blue text, never yellow: it fails contrast)
+- Sidebar items are real links (`next/link`), reachable with Tab and openable in a new tab. The user avatar is built locally from the initials: no external avatar service (it would receive every user's email)
+- Calendars default to Spanish (`react-day-picker/locale` `es`)
 - **Sonner** for toast notifications
 - **Lucide React** for icons
 

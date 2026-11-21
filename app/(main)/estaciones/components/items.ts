@@ -36,6 +36,8 @@ type Contaminante = {
   nombre: string;
   nombreCompleto?: string;
   unidad: string;
+  /** Decimales con que se muestra el valor (siempre los mismos). */
+  decimales: number;
 };
 
 type Meteorologica = {
@@ -43,6 +45,8 @@ type Meteorologica = {
   nombre: string;
   nombreCompleto?: string;
   unidad: string;
+  /** Decimales con que se muestra el valor (siempre los mismos). */
+  decimales: number;
   icon: LucideIcon;
 };
 
@@ -52,48 +56,56 @@ export const contaminantes: Contaminante[] = [
     nombre: "CO",
     nombreCompleto: "Monóxido de Carbono",
     unidad: "ppm",
+    decimales: 2,
   },
   {
     key: METRIC_KEYS.NO_MEAN,
     nombre: "NO",
-    nombreCompleto: "Óxido de Nitrógeno",
+    nombreCompleto: "Monóxido de Nitrógeno",
     unidad: "ppb",
+    decimales: 1,
   },
   {
     key: METRIC_KEYS.NO2_MEAN,
     nombre: "NO₂",
     nombreCompleto: "Dióxido de Nitrógeno",
     unidad: "ppb",
+    decimales: 1,
   },
   {
     key: METRIC_KEYS.NOX_MEAN,
     nombre: "NOₓ",
     nombreCompleto: "Óxidos Totales",
     unidad: "ppb",
+    decimales: 1,
   },
   {
     key: METRIC_KEYS.PM10_MEAN,
     nombre: "PM₁₀",
     nombreCompleto: "Material Particulado",
     unidad: "μg/m³",
+    decimales: 1,
   },
   {
     key: METRIC_KEYS.PM25_MEAN,
-    nombre: "PM₂₅",
+    nombre: "PM₂.₅",
     nombreCompleto: "Material Particulado 2.5",
     unidad: "μg/m³",
+    decimales: 1,
   },
   {
     key: METRIC_KEYS.O3_MEAN,
-    nombre: "O3",
-    nombreCompleto: "Ozóno",
+    nombre: "O₃",
+    nombreCompleto: "Ozono",
     unidad: "ppb",
+    decimales: 1,
   },
   {
     key: METRIC_KEYS.SO2_MEAN,
     nombre: "SO₂",
     nombreCompleto: "Dióxido de Azufre",
     unidad: "ppb",
+    decimales: 1,
   },
 ];
 
@@ -103,6 +115,7 @@ export const meteorologica: Meteorologica[] = [
     nombre: "Temperatura",
     nombreCompleto: "Temperatura",
     unidad: "°C",
+    decimales: 1,
     icon: Thermometer,
   },
   {
@@ -110,6 +123,7 @@ export const meteorologica: Meteorologica[] = [
     nombre: "Humedad",
     nombreCompleto: "Humedad Relativa",
     unidad: "%",
+    decimales: 0,
     icon: Droplets,
   },
   {
@@ -117,6 +131,7 @@ export const meteorologica: Meteorologica[] = [
     nombre: "Dirección Viento",
     nombreCompleto: "Dirección del Viento",
     unidad: "°",
+    decimales: 0,
     icon: Compass,
   },
   {
@@ -124,6 +139,7 @@ export const meteorologica: Meteorologica[] = [
     nombre: "Velocidad Viento",
     nombreCompleto: "Velocidad del Viento",
     unidad: "m/s",
+    decimales: 1,
     icon: Wind,
   },
   {
@@ -131,6 +147,7 @@ export const meteorologica: Meteorologica[] = [
     nombre: "Lluvia",
     nombreCompleto: "Precipitaciones",
     unidad: "mm",
+    decimales: 1,
     icon: CloudRain,
   },
   {
@@ -138,6 +155,7 @@ export const meteorologica: Meteorologica[] = [
     nombre: "Presión Atm",
     nombreCompleto: "Presión Atmosférica",
     unidad: "hPa",
+    decimales: 0,
     icon: WindArrowDownIcon,
   },
   {
@@ -145,6 +163,7 @@ export const meteorologica: Meteorologica[] = [
     nombre: "Radiación Solar",
     nombreCompleto: "Radiación Solar",
     unidad: "W/m²",
+    decimales: 0,
     icon: Sun,
   },
   {
@@ -152,6 +171,7 @@ export const meteorologica: Meteorologica[] = [
     nombre: "UV",
     nombreCompleto: "Ultravioleta",
     unidad: "UV",
+    decimales: 1,
     icon: Sun,
   },
 ];

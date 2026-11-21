@@ -11,6 +11,7 @@ import {
   serieBase,
   seriesDe,
   seriesDeUnaFuente,
+  tieneValores,
 } from "@/lib/datos/series";
 
 const TODOS = new Set(STATUS_MINUTO.map((s) => s.value));
@@ -211,5 +212,30 @@ describe("la marca de hora cargada", () => {
         "centenario (validados)@cargada": 1,
       },
     ]);
+  });
+});
+
+describe("tieneValores", () => {
+  it("filas con todas las series en null no son datos", () => {
+    expect(tieneValores([])).toBe(false);
+    expect(
+      tieneValores([
+        { time: "2026-11-21T00:00:00Z", "centenario (validados)": null },
+        {
+          time: "2026-11-21T01:00:00Z",
+          "centenario (validados)": null,
+          [`centenario (validados)${SUFIJO_STATUS}`]: "K",
+        },
+      ]),
+    ).toBe(false);
+  });
+
+  it("alcanza con un valor en cualquier serie, aunque sea 0", () => {
+    expect(
+      tieneValores([
+        { time: "2026-11-21T00:00:00Z", "centenario (validados)": null },
+        { time: "2026-11-21T01:00:00Z", "centenario (crudo)": 0 },
+      ]),
+    ).toBe(true);
   });
 });

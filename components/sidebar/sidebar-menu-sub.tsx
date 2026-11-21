@@ -1,7 +1,8 @@
 "use client";
 
 import { ChevronRight, type LucideIcon } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   Collapsible,
@@ -16,8 +17,8 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
-import { cn } from "@/lib/utils";
 
 interface Item {
   title: string;
@@ -27,24 +28,14 @@ interface ModuleMenuProps {
   title: string;
   icon: LucideIcon;
   items: Array<Item>;
-  defaultUrl?: string;
 }
 
-export function MenuSub({
-  title,
-  items,
-  icon: Icon,
-  defaultUrl,
-}: ModuleMenuProps) {
+// El título abre y cierra el grupo; cada subítem es un link de verdad (se llega
+// con Tab y se abre en otra pestaña).
+export function MenuSub({ title, items, icon: Icon }: ModuleMenuProps) {
   const [isOpen, setIsOpen] = useState(true);
   const pathName = usePathname();
-  const router = useRouter();
-
-  const handleTitleClick = () => {
-    if (defaultUrl) {
-      router.push(defaultUrl);
-    }
-  };
+  const { setOpenMobile } = useSidebar();
 
   return (
     <SidebarMenu>
@@ -55,11 +46,7 @@ export function MenuSub({
           className="group/collapsible"
         >
           <CollapsibleTrigger asChild>
-            <SidebarMenuButton
-              tooltip={title}
-              onClick={defaultUrl ? handleTitleClick : undefined}
-              className={defaultUrl ? "cursor-pointer" : ""}
-            >
+            <SidebarMenuButton tooltip={title}>
               <Icon />
               <span>{title}</span>
               <ChevronRight
@@ -81,10 +68,14 @@ export function MenuSub({
                   <SidebarMenuSubButton
                     asChild
                     isActive={pathName === item.url}
-                    onClick={() => router.push(item.url)}
-                    className={cn("cursor-pointer")}
                   >
-                    <span className="select-none">{item.title}</span>
+                    <Link
+                      href={item.url}
+                      aria-current={pathName === item.url ? "page" : undefined}
+                      onClick={() => setOpenMobile(false)}
+                    >
+                      {item.title}
+                    </Link>
                   </SidebarMenuSubButton>
                 </SidebarMenuSubItem>
               </CollapsibleContent>

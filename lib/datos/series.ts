@@ -113,6 +113,19 @@ export function seriesDe(data: Fila[]): string[] {
 }
 
 /**
+ * Si alguna serie trae al menos un valor. Una consulta puede devolver filas
+ * (las horas del rango) con todas las series en null: para la pantalla eso es
+ * "no hay datos", no una tabla con solo la columna de la hora.
+ */
+export function tieneValores(data: Fila[]): boolean {
+  return data.some((fila) =>
+    Object.entries(fila).some(
+      ([k, v]) => k !== "time" && !esMarca(k) && v !== null && v !== undefined,
+    ),
+  );
+}
+
+/**
  * Devuelve las filas listas para el grafico y la tabla: sin columnas de status
  * (la marca de hora cargada si se conserva),
  * sin las columnas crudas apagadas, y por minuto con el valor en null donde el

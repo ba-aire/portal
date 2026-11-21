@@ -45,8 +45,8 @@ function buildCsp(nonce: string) {
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline'",
-    // dicebear: avatares del sidebar. openstreetmap: tiles raster del mapa.
-    "img-src 'self' blob: data: https://api.dicebear.com https://tile.openstreetmap.org",
+    // openstreetmap: tiles raster del mapa.
+    "img-src 'self' blob: data: https://tile.openstreetmap.org",
     "font-src 'self' data:",
     "connect-src 'self' https://tile.openstreetmap.org",
     "worker-src 'self' blob:",

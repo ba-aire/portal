@@ -120,7 +120,9 @@ export default function FiltrosMensualPanel({
     vistaPrevia.mes === mes;
 
   return (
-    <div className="flex flex-col flex-wrap md:flex-row gap-4 items-center justify-center text-primary">
+    // En el teléfono, un filtro debajo del otro y todos del mismo ancho; desde
+    // md, en fila con los botones alineados abajo.
+    <div className="mx-auto flex w-full max-w-sm flex-col gap-4 text-primary md:max-w-none md:flex-row md:flex-wrap md:items-end md:justify-center">
       <div className="flex flex-col gap-3">
         <Label htmlFor="mes" className="px-1">
           Mes
@@ -131,6 +133,7 @@ export default function FiltrosMensualPanel({
           onChange={setMes}
           desde={primerMes()}
           disabled={ocupado}
+          className="w-full md:w-48"
         />
       </div>
 
@@ -143,7 +146,7 @@ export default function FiltrosMensualPanel({
           onValueChange={(x) => setEstacion(x as Estacion)}
           disabled={ocupado}
         >
-          <SelectTrigger id="estacion" className="w-[190px]">
+          <SelectTrigger id="estacion" className="w-full md:w-[190px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -165,7 +168,7 @@ export default function FiltrosMensualPanel({
           onValueChange={(x) => setContaminante(x as Contaminante)}
           disabled={ocupado}
         >
-          <SelectTrigger id="contaminante" className="w-[230px]">
+          <SelectTrigger id="contaminante" className="w-full md:w-[230px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
