@@ -33,15 +33,13 @@ const timeField = z
 const locationField = z.string();
 const statusField = z.string().nullable().optional();
 
-// Estaciones válidas. El repositorio pasa la estación como parámetro ($1), pero el
-// enum sigue siendo la puerta: una estación que no existe ni llega a la base.
-export const LocationEnum = z.enum([
-  "centenario",
-  "cordoba",
-  "catalinas",
-  "cifa",
-]);
-export type Location = z.infer<typeof LocationEnum>;
+// Estaciones válidas (lib/estaciones.ts). El repositorio pasa la estación como
+// parámetro ($1), pero el enum sigue siendo la puerta: una estación que no
+// existe ni llega a la base.
+export {
+  type Estacion as Location,
+  EstacionEnum as LocationEnum,
+} from "@/lib/estaciones";
 
 // Esquemas individuales
 export const CoRowSchema = z.object({

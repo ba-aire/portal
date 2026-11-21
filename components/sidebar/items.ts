@@ -7,6 +7,7 @@ import {
   Upload,
   Wind,
 } from "lucide-react";
+import { CODIGOS_ESTACION, ESTACIONES, urlEstacion } from "@/lib/estaciones";
 
 // ICA = índice de calidad del aire.
 export const ica = [
@@ -21,24 +22,11 @@ export const estaciones = {
   title: "Estaciones",
   icon: MapPinned,
   url: "/estaciones",
-  items: [
-    {
-      title: "Centenario",
-      url: "/estaciones/centenario",
-    },
-    {
-      title: "La Boca",
-      url: "/estaciones/catalinas",
-    },
-    {
-      title: "Córdoba",
-      url: "/estaciones/cordoba",
-    },
-    {
-      title: "CIFA",
-      url: "/estaciones/cifa",
-    },
-  ],
+  // Una por estación, en el orden de lib/estaciones.ts.
+  items: CODIGOS_ESTACION.map((codigo) => ({
+    title: ESTACIONES[codigo].nombre,
+    url: urlEstacion(codigo),
+  })),
 };
 
 export const datos = [

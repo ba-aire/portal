@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { filtrosSchema } from "@/lib/datos/models";
+import { OPCIONES_ESTACION } from "@/lib/estaciones";
 import { HORA_DESDE_DEFECTO, HORA_HASTA_DEFECTO } from "@/lib/rango-minutal";
 
 export interface FiltrosType {
@@ -53,13 +54,6 @@ export const promedioOptions = [
   { label: "Horas", value: "hour" },
   { label: "Media móvil 8 h", value: "mov8h" },
   { label: "Media móvil 24 h", value: "mov24h" },
-];
-
-export const locationsOptions = [
-  { label: "Centenario", value: "centenario" },
-  { label: "La Boca", value: "catalinas" },
-  { label: "Cordoba", value: "cordoba" },
-  { label: "Cifa", value: "cifa" },
 ];
 
 interface FiltrosProps {
@@ -287,7 +281,7 @@ export default function Filtros({
             </PopoverTrigger>
             <PopoverContent className="w-60 p-2" align="start">
               <div className="flex flex-col gap-2 max-h-64 overflow-auto">
-                {locationsOptions.map((opt) => {
+                {OPCIONES_ESTACION.map((opt) => {
                   const checked = selectedLocations.includes(opt.value);
                   return (
                     <label

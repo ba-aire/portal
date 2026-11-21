@@ -1,5 +1,6 @@
 import { TABLE_CONFIG } from "@/lib/descargas/config";
 import type { DataPoint } from "@/lib/descargas/models";
+import { nombreSerie } from "@/lib/estaciones";
 import { encabezadoPeriodo, formatPeriodo, type Periodo } from "@/lib/periodo";
 
 interface TableProps {
@@ -88,9 +89,7 @@ export default function Table({ data, interval }: TableProps) {
             <th className="border px-2 py-1">{encabezadoPeriodo(interval)}</th>
             {locations.map((location) => (
               <th key={location} className="border px-2 py-1 capitalize">
-                {location === "catalinas"
-                  ? "La Boca"
-                  : location.charAt(0).toUpperCase() + location.slice(1)}
+                {nombreSerie(location)}
               </th>
             ))}
           </tr>

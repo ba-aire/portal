@@ -9,11 +9,9 @@
 
 import ExcelJS from "exceljs";
 import type { FiltrosType } from "@/app/(main)/descargas/components/filters";
-import {
-  locationOptions,
-  promedioOptions,
-} from "@/app/(main)/descargas/components/filters";
+import { promedioOptions } from "@/app/(main)/descargas/components/filters";
 import type { DataRow } from "@/hooks/useFetchDescargas";
+import { nombreEstacion, nombreSerie } from "@/lib/estaciones";
 import {
   encabezadoPeriodo,
   formatInstante,
@@ -271,14 +269,17 @@ export function generateFilename(
   filters: FiltrosType,
   extension: "csv" | "xlsx",
 ): string {
-  const locationLabel =
-    locationOptions.find((opt) => opt.value === filters.location)?.label ||
-    filters.location;
+  const locationLabel = nombreEstacion(filters.location);
   const integrationLabel =
     promedioOptions.find((opt) => opt.value === filters.integration)?.label ||
     filters.integration;
 
-  const locationSlug = locationLabel.toLowerCase().replace(/\s+/g, "_");
+  // Sin tildes: "Córdoba" sale "cordoba", como el nombre de archivo de siempre.
+  const locationSlug = locationLabel
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .replace(/\s+/g, "_");
   const integrationSlug = integrationLabel.toLowerCase().replace(/\s+/g, "_");
 
   let dateRange = "";
@@ -367,10 +368,7 @@ export function downloadAsCSV(
   const isHour = resolveIntegration(data, integration) === "hour";
   const headers = [
     encabezadoPeriodo(isHour ? "hour" : "minute"),
-    ...columns.map((col) => {
-      if (col === "catalinas") return "La Boca";
-      return col.charAt(0).toUpperCase() + col.slice(1);
-    }),
+    ...columns.map(nombreSerie),
   ];
 
   // Crear líneas CSV
@@ -561,11 +559,9 @@ function addDataToWorksheet(
   // Agregar encabezados
   const headers = [
     encabezadoPeriodo(options.hourRangeLabels ? "hour" : "minute"),
-    ...columns.map((col) => {
-      const name = options.stripRawSuffix ? baseColumnName(col) : col;
-      if (name === "catalinas") return "La Boca";
-      return name.charAt(0).toUpperCase() + name.slice(1);
-    }),
+    ...columns.map((col) =>
+      nombreSerie(options.stripRawSuffix ? baseColumnName(col) : col),
+    ),
   ];
   const headerRow = worksheet.addRow(headers);
   headerRow.font = { bold: true };
