@@ -72,6 +72,7 @@ export function ciudadDe(estaciones: IcaEstacion[]): IcaCiudad | null {
   });
 
   return {
+    ts_hour: peor.ts_hour,
     categoria: peor.categoria ?? 0,
     categoria_nombre: peor.categoria_nombre,
     color_hex: peor.color_hex,
@@ -83,9 +84,16 @@ export function ciudadDe(estaciones: IcaEstacion[]): IcaCiudad | null {
   };
 }
 
-export async function getIca(indice: Indice): Promise<IcaRespuesta> {
+/**
+ * El índice de cada estación y de la Ciudad. `hora` es el inicio de una hora:
+ * sin ella, la última de cada estación (lo que se ve al entrar).
+ */
+export async function getIca(
+  indice: Indice,
+  hora: Date | null = null,
+): Promise<IcaRespuesta> {
   const [filas, categorias, nombres] = await Promise.all([
-    fetchIcaEstaciones(indice),
+    fetchIcaEstaciones(indice, hora),
     fetchIcaCategorias(indice),
     fetchNombresDeParametros(),
   ]);
@@ -93,6 +101,7 @@ export async function getIca(indice: Indice): Promise<IcaRespuesta> {
 
   return {
     indice,
+    hora: hora ? hora.toISOString() : null,
     ciudad: ciudadDe(estaciones),
     estaciones,
     categorias,

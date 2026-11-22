@@ -1,6 +1,15 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { colorDeTexto, franjaHoraria } from "@/lib/ica/presentacion";
+import {
+  colorDeTexto,
+  etiquetaDeHora,
+  franjaHoraria,
+  HORAS_ATRAS,
+  haceCuanto,
+  horaEnCurso,
+  horasDelSelector,
+  horasDistintas,
+} from "@/lib/ica/presentacion";
 
 describe("colorDeTexto", () => {
   // Los colores de las categorías vienen de airedb. El amarillo de "Moderada"
@@ -46,5 +55,93 @@ describe("franjaHoraria", () => {
   it("sin hora o con una inválida, null", () => {
     expect(franjaHoraria(null)).toBeNull();
     expect(franjaHoraria("no es una fecha")).toBeNull();
+  });
+});
+
+describe("horaEnCurso", () => {
+  it("trunca al inicio de la hora", () => {
+    expect(
+      horaEnCurso(new Date("2026-11-21T16:42:13.500Z")).toISOString(),
+    ).toBe("2026-11-21T16:00:00.000Z");
+  });
+
+  it("una hora en punto queda igual", () => {
+    expect(
+      horaEnCurso(new Date("2026-11-21T16:00:00.000Z")).toISOString(),
+    ).toBe("2026-11-21T16:00:00.000Z");
+  });
+});
+
+describe("horasDelSelector", () => {
+  const AHORA = new Date("2026-11-21T16:42:00.000Z");
+
+  it("ofrece las HORAS_ATRAS horas completas, de la más vieja a la más nueva", () => {
+    const horas = horasDelSelector(AHORA);
+
+    expect(horas).toHaveLength(HORAS_ATRAS);
+    expect(horas[0]).toBe("2026-11-19T16:00:00.000Z");
+    expect(horas.at(-1)).toBe("2026-11-21T15:00:00.000Z");
+  });
+
+  // gold nunca tiene la hora en curso: ofrecerla daría siempre "sin índice".
+  it("no incluye la hora en curso", () => {
+    expect(horasDelSelector(AHORA)).not.toContain("2026-11-21T16:00:00.000Z");
+  });
+
+  it("van de a una hora", () => {
+    const horas = horasDelSelector(AHORA).map((h) => new Date(h).getTime());
+    for (let i = 1; i < horas.length; i++) {
+      expect(horas[i] - horas[i - 1]).toBe(60 * 60 * 1000);
+    }
+  });
+});
+
+describe("haceCuanto", () => {
+  const AHORA = new Date("2026-11-21T16:42:00.000Z");
+
+  it("en singular para la hora anterior a la en curso", () => {
+    expect(haceCuanto("2026-11-21T15:00:00.000Z", AHORA)).toBe("Hace 1 hora");
+  });
+
+  it("en plural para las demás", () => {
+    expect(haceCuanto("2026-11-20T07:00:00.000Z", AHORA)).toBe("Hace 33 horas");
+  });
+});
+
+describe("etiquetaDeHora", () => {
+  // 16:00 UTC del sábado 21 son las 13:00 de Buenos Aires.
+  it("el día y la franja, en hora de Buenos Aires", () => {
+    expect(etiquetaDeHora("2026-11-21T16:00:00.000Z")).toBe(
+      "sáb 21/11, 13:00 a 14:00",
+    );
+  });
+
+  // 02:00 UTC del domingo 22 todavía es el sábado 21 en Buenos Aires.
+  it("toma el día local, no el de UTC", () => {
+    expect(etiquetaDeHora("2026-11-22T02:00:00.000Z")).toBe(
+      "sáb 21/11, 23:00 a 00:00",
+    );
+  });
+
+  it("sin hora o con una inválida, null", () => {
+    expect(etiquetaDeHora(null)).toBeNull();
+    expect(etiquetaDeHora("no es una fecha")).toBeNull();
+  });
+});
+
+describe("horasDistintas", () => {
+  it("las horas de las estaciones con índice, sin repetir, de la más nueva a la más vieja", () => {
+    expect(
+      horasDistintas([
+        { ts_hour: "2026-11-21T14:00:00.000Z" },
+        { ts_hour: null },
+        { ts_hour: "2026-11-21T15:00:00.000Z" },
+        { ts_hour: "2026-11-21T14:00:00.000Z" },
+      ]),
+    ).toEqual(["2026-11-21T15:00:00.000Z", "2026-11-21T14:00:00.000Z"]);
+  });
+
+  it("sin estaciones con índice, vacío", () => {
+    expect(horasDistintas([{ ts_hour: null }])).toEqual([]);
   });
 });

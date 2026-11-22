@@ -72,6 +72,39 @@ describe("repositorio del índice", () => {
       expect(sqlEmitido()).toContain("FROM dim.stations s LEFT JOIN LATERAL");
     });
 
+    describe("en una hora", () => {
+      const HORA = new Date("2026-11-21T16:00:00.000Z");
+
+      it("busca esa hora exacta, con índice y hora como parámetros", async () => {
+        await fetchIcaEstaciones("EEA", HORA);
+
+        expect(sqlEmitido()).toContain("FROM gold.v_ica_horario");
+        expect(sqlEmitido()).toContain("v.indice = $1");
+        expect(sqlEmitido()).toContain("v.ts_hour = $2::timestamptz");
+        expect(sqlEmitido()).not.toContain("EEA");
+        expect(sqlEmitido()).not.toContain("2026-11-21");
+        expect(queryAiredb.mock.calls[0][1]).toEqual([
+          "EEA",
+          "2026-11-21T16:00:00.000Z",
+        ]);
+      });
+
+      // Si cayera a la hora anterior, al mover el selector se repetiría el
+      // mismo valor como si fuera de cada hora.
+      it("no busca hacia atrás desde ahora", async () => {
+        await fetchIcaEstaciones("EPA", HORA);
+
+        expect(sqlEmitido()).not.toContain("now()");
+        expect(sqlEmitido()).not.toContain("ORDER BY v.ts_hour DESC");
+      });
+
+      it("tampoco pierde la estación sin índice a esa hora", async () => {
+        await fetchIcaEstaciones("EPA", HORA);
+
+        expect(sqlEmitido()).toContain("FROM dim.stations s LEFT JOIN LATERAL");
+      });
+    });
+
     it("devuelve las filas tal como vienen", async () => {
       state.filas = [{ station_code: "cifa", categoria: 2 }];
 

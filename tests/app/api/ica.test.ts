@@ -27,6 +27,7 @@ const SESION = {
 
 const RESPUESTA = {
   indice: "EPA" as const,
+  hora: null,
   ciudad: null,
   estaciones: [],
   categorias: [],
@@ -56,14 +57,14 @@ describe("GET /api/ica", () => {
     const res = await GET(pedido(`?indice=${indice}`));
 
     expect(res.status).toBe(200);
-    expect(getIca).toHaveBeenCalledWith(indice);
+    expect(getIca).toHaveBeenCalledWith(indice, null);
     await expect(res.json()).resolves.toEqual(RESPUESTA);
   });
 
   it("sin parámetro usa EPA", async () => {
     await GET(pedido());
 
-    expect(getIca).toHaveBeenCalledWith("EPA");
+    expect(getIca).toHaveBeenCalledWith("EPA", null);
   });
 
   // Caer a un default en silencio haría que el cliente muestre un índice
@@ -77,6 +78,59 @@ describe("GET /api/ica", () => {
       expect(getIca).not.toHaveBeenCalled();
     },
   );
+
+  describe("hora", () => {
+    // gold rotula cada hora por su inicio, en UTC.
+    it("pasa el inicio de una hora pasada como Date", async () => {
+      const res = await GET(
+        pedido("?indice=EEA&hora=2026-11-21T16:00:00.000Z"),
+      );
+
+      expect(res.status).toBe(200);
+      expect(getIca).toHaveBeenCalledWith(
+        "EEA",
+        new Date("2026-11-21T16:00:00.000Z"),
+      );
+    });
+
+    it("acepta la hora con desfase explícito", async () => {
+      await GET(
+        pedido(`?hora=${encodeURIComponent("2026-11-21T13:00:00-03:00")}`),
+      );
+
+      expect(getIca).toHaveBeenCalledWith(
+        "EPA",
+        new Date("2026-11-21T16:00:00.000Z"),
+      );
+    });
+
+    // Caer a "la última hora" en silencio haría que el cliente la muestre con
+    // el rótulo de la hora que pidió.
+    it.each([
+      ["no es una fecha", "texto"],
+      ["2026-11-21T16:00:00", "sin zona: se leería en la del servidor"],
+      ["2026-11-21T16:30:00.000Z", "no empieza en punto"],
+      ["2026-11-21", "solo la fecha"],
+      ["", "vacía"],
+    ])("responde 400 ante la hora %j (%s), sin tocar la base", async (hora) => {
+      const res = await GET(
+        pedido(`?indice=EPA&hora=${encodeURIComponent(hora)}`),
+      );
+
+      expect(res.status).toBe(400);
+      expect(getIca).not.toHaveBeenCalled();
+    });
+
+    it("responde 400 ante una hora futura", async () => {
+      const futura = new Date(Date.now() + 2 * 60 * 60 * 1000);
+      futura.setUTCMinutes(0, 0, 0);
+
+      const res = await GET(pedido(`?hora=${futura.toISOString()}`));
+
+      expect(res.status).toBe(400);
+      expect(getIca).not.toHaveBeenCalled();
+    });
+  });
 
   it("un fallo interno da 500 genérico, sin el mensaje de la base", async () => {
     const consola = vi.spyOn(console, "error").mockImplementation(() => {});
