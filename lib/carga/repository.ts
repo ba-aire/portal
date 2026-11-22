@@ -2,6 +2,7 @@ import { queryAiredb, transaccionDeEscritura } from "@/db/airedb";
 import {
   type Carga,
   type CargarPedido,
+  type CargaSolapada,
   LIMITE_LISTADO,
   type ListarFiltros,
   type VistaPrevia,
@@ -105,6 +106,34 @@ const VISTA_PREVIA = `
   GROUP BY l.parameter_code, p.display_name, p.display_unit
   ORDER BY l.parameter_code`;
 
+// Las cargas vigentes que el lote pisa: las que hoy GANAN en alguna hora del
+// lote (carga.v_vigente), para la estación del archivo. Se cruza por parámetro y
+// hora, no por rango: un parámetro que el archivo no trae no se toca. Una hora
+// que otra carga ya había ganado no cuenta para la vieja, que ahí no valía.
+const SOLAPES = `
+  WITH lote AS (
+    SELECT x.parameter_code, x.ts_hour
+    FROM jsonb_to_recordset($2::jsonb)
+         AS x(parameter_code text, ts_hour timestamptz)
+  ), est AS (
+    SELECT station_id FROM dim.stations WHERE station_code = $1
+  )
+  SELECT c.carga_id::int AS carga_id, c.archivo, c.motivo,
+         c.registrado_por, c.registrado_en,
+         count(*)::int AS horas,
+         min(v.ts_hour) AS desde,
+         max(v.ts_hour) + INTERVAL '1 hour' AS hasta,
+         array_agg(DISTINCT v.parameter_code ORDER BY v.parameter_code) AS parametros
+  FROM lote l
+  CROSS JOIN est
+  JOIN carga.v_vigente v
+    ON v.station_id = est.station_id
+   AND v.parameter_code = l.parameter_code
+   AND v.ts_hour = l.ts_hour
+  JOIN carga.carga c ON c.carga_id = v.carga_id
+  GROUP BY c.carga_id, c.archivo, c.motivo, c.registrado_por, c.registrado_en
+  ORDER BY c.carga_id DESC`;
+
 type FilaVistaPrevia = Omit<
   VistaPrevia["parametros"][number],
   "desde" | "hasta"
@@ -113,18 +142,31 @@ type FilaVistaPrevia = Omit<
   hasta: Date;
 };
 
+type FilaSolape = Omit<CargaSolapada, "registrado_en" | "desde" | "hasta"> & {
+  registrado_en: Date;
+  desde: Date;
+  hasta: Date;
+};
+
 export async function fetchVistaPrevia(
   pedido: VistaPreviaPedido,
 ): Promise<VistaPrevia> {
-  const filas = await queryAiredb<FilaVistaPrevia>(VISTA_PREVIA, [
-    pedido.station_code,
-    JSON.stringify(pedido.horas),
+  const params = [pedido.station_code, JSON.stringify(pedido.horas)];
+  const [filas, solapes] = await Promise.all([
+    queryAiredb<FilaVistaPrevia>(VISTA_PREVIA, params),
+    queryAiredb<FilaSolape>(SOLAPES, params),
   ]);
   return {
     parametros: filas.map((f) => ({
       ...f,
       desde: f.desde.toISOString(),
       hasta: f.hasta.toISOString(),
+    })),
+    solapes: solapes.map((s) => ({
+      ...s,
+      registrado_en: s.registrado_en.toISOString(),
+      desde: s.desde.toISOString(),
+      hasta: s.hasta.toISOString(),
     })),
   };
 }

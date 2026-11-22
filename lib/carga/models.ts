@@ -109,4 +109,25 @@ export type VistaPreviaParametro = {
   ya_cargadas: number;
 };
 
-export type VistaPrevia = { parametros: VistaPreviaParametro[] };
+/**
+ * Una carga vigente a la que el lote le quita horas (carga.v_vigente, misma
+ * estación, parámetro y hora). La base acepta el solapamiento sin avisar y vale
+ * la carga más nueva, así que el aviso tiene que darlo el portal.
+ */
+export type CargaSolapada = {
+  carga_id: number;
+  archivo: string | null;
+  motivo: string;
+  registrado_por: string;
+  registrado_en: string;
+  /** Horas de esa carga que pasan a valer las de este lote. */
+  horas: number;
+  desde: string;
+  hasta: string;
+  parametros: string[];
+};
+
+export type VistaPrevia = {
+  parametros: VistaPreviaParametro[];
+  solapes: CargaSolapada[];
+};
