@@ -1,175 +1,159 @@
 "use client";
 
 import { AlertCircle, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import useFetchIca from "@/hooks/useFetchIca";
+import useFetchIca, { precargarIca } from "@/hooks/useFetchIca";
 import {
-  type IcaCategoria,
   type IcaCiudad,
-  type IcaEstacion,
+  type IcaRespuesta,
   INDICES,
   type Indice,
   IndiceEnum,
 } from "@/lib/ica/models";
 import {
-  COLOR_SIN_DATO,
-  colorDeTexto,
+  etiquetaDeHora,
   franjaHoraria,
+  horasDelSelector,
+  horasDistintas,
 } from "@/lib/ica/presentacion";
+import { cn } from "@/lib/utils";
+import { Etiqueta } from "./etiqueta";
+import { Leyenda } from "./leyenda";
 import IcaMap from "./map";
+import { SelectorHora } from "./selector-hora";
 
-function Etiqueta({
-  color,
-  children,
+// Cuánto se queda cada hora en pantalla al reproducir. Cuenta desde que llegó
+// el dato, no desde que se pidió: con la base lenta, no se saltea ninguna.
+const PASO_MS = 1000;
+
+// Al arrastrar el deslizador se pide la hora donde se suelta, no cada una por
+// la que pasa.
+const ESPERA_MS = 250;
+
+function TarjetaCiudad({
+  ciudad,
+  enHora,
+  className,
 }: {
-  color: string | null;
-  children: React.ReactNode;
+  ciudad: IcaCiudad | null;
+  enHora: boolean;
+  className?: string;
 }) {
-  const fondo = color ?? COLOR_SIN_DATO;
+  const franja = franjaHoraria(ciudad?.ts_hour ?? null);
   return (
-    <span
-      className="inline-flex items-center rounded-md px-2 py-0.5 text-sm font-semibold"
-      style={{ backgroundColor: fondo, color: colorDeTexto(fondo) }}
+    <div
+      className={cn(
+        "flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-primary/30 bg-white px-4 py-3 shadow-sm transition-opacity",
+        className,
+      )}
     >
-      {children}
-    </span>
-  );
-}
-
-function TarjetaCiudad({ ciudad }: { ciudad: IcaCiudad | null }) {
-  return (
-    <Card className="border-primary/30">
-      <CardContent className="flex flex-wrap items-center gap-x-4 gap-y-2 py-4">
-        <span className="text-sm font-medium text-primary/80">
-          Ciudad de Buenos Aires
+      <span className="text-sm font-semibold text-primary">
+        Ciudad de Buenos Aires
+      </span>
+      {ciudad ? (
+        <>
+          <Etiqueta color={ciudad.color_hex}>
+            {ciudad.categoria_nombre}
+            {ciudad.valor !== null && ` · ${ciudad.valor}`}
+          </Etiqueta>
+          {/* El índice de la Ciudad es el de la peor estación, no un promedio:
+              se dice cuál es para que no se lea como un valor de toda la Ciudad. */}
+          <span className="text-sm text-muted-foreground">
+            Peor estación: {ciudad.station_name}, de {ciudad.n_estaciones} con
+            índice{franja && ` · ${franja}`}
+          </span>
+        </>
+      ) : (
+        <span className="text-sm text-muted-foreground">
+          {enHora ? "Sin índice a esa hora" : "Sin índice en las últimas horas"}
         </span>
-        {ciudad ? (
-          <>
-            <Etiqueta color={ciudad.color_hex}>
-              {ciudad.categoria_nombre}
-              {ciudad.valor !== null && ` · ${ciudad.valor}`}
-            </Etiqueta>
-            {/* El índice de la Ciudad es el de la peor estación, no un promedio:
-                se dice cuál es para que no se lea como un valor de toda la Ciudad. */}
-            <span className="text-sm text-muted-foreground">
-              Peor estación: {ciudad.station_name}, de {ciudad.n_estaciones} con
-              índice
-            </span>
-          </>
-        ) : (
-          <span className="text-sm text-muted-foreground">
-            Sin índice en las últimas horas
-          </span>
-        )}
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 }
 
-function TarjetaEstacion({
-  estacion,
-  categorias,
-}: {
-  estacion: IcaEstacion;
-  categorias: IcaCategoria[];
-}) {
-  const colorDe = (categoria: number) =>
-    categorias.find((c) => c.categoria === categoria)?.color_hex ?? null;
-  // El entorno que publica el GCBA ("Residencial-comercial"), no nuestra
-  // clasificación en tránsito / industrial / fondo.
-  const zona = estacion.station_zone;
-
-  return (
-    <Card className="border-primary/30">
-      <CardContent className="flex flex-col gap-2 py-4">
-        <div className="flex items-baseline justify-between gap-2">
-          <span className="font-bold text-primary">
-            {estacion.station_name}
-          </span>
-          {zona && (
-            <span className="text-xs text-muted-foreground">{zona}</span>
-          )}
-        </div>
-
-        {estacion.categoria === null ? (
-          <span className="text-sm text-muted-foreground">
-            Sin índice en las últimas horas
-          </span>
-        ) : (
-          <>
-            <div className="flex flex-wrap items-center gap-2">
-              <Etiqueta color={estacion.color_hex}>
-                {estacion.categoria_nombre}
-                {estacion.valor !== null && ` · ${estacion.valor}`}
-              </Etiqueta>
-              <span className="text-xs text-muted-foreground">
-                {franjaHoraria(estacion.ts_hour)}
-              </span>
-            </div>
-
-            <ul className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
-              {estacion.contaminantes.map((c) => (
-                <li key={c.parameter_code} className="flex items-center gap-1">
-                  <span
-                    aria-hidden
-                    className="inline-block size-2.5 rounded-full border border-black/20"
-                    style={{
-                      backgroundColor: colorDe(c.categoria) ?? COLOR_SIN_DATO,
-                    }}
-                  />
-                  <span>{c.nombre}</span>
-                  {c.subindice !== null && (
-                    <span className="text-muted-foreground">{c.subindice}</span>
-                  )}
-                </li>
-              ))}
-            </ul>
-
-            {/* Una estación que mide menos contaminantes da un índice "mejor"
-                solo por eso. data lo marca y acá se dice. */}
-            {estacion.indice_completo === false && (
-              <span className="text-xs text-amber-700">
-                Índice incompleto: faltan contaminantes para este tipo de
-                estación.
-              </span>
-            )}
-          </>
-        )}
-      </CardContent>
-    </Card>
-  );
+/** Qué es "Última hora" con lo que llegó: cada estación trae la suya. */
+function detalleUltima(datos: IcaRespuesta | null): string {
+  if (!datos) return "Cargando…";
+  const horas = horasDistintas(datos.estaciones);
+  if (horas.length === 0) return "Sin índice en las últimas 6 horas";
+  if (horas.length === 1) return etiquetaDeHora(horas[0]) ?? "";
+  return "Cada estación con su última hora";
 }
 
-function Leyenda({ categorias }: { categorias: IcaCategoria[] }) {
-  return (
-    <ul className="flex flex-wrap gap-2 text-xs">
-      {categorias.map((c) => (
-        <li key={c.categoria}>
-          <Etiqueta color={c.color_hex}>{c.nombre}</Etiqueta>
-        </li>
-      ))}
-    </ul>
-  );
+/** La hora actual, al minuto: corre el deslizador cuando empieza otra hora. */
+function useAhora() {
+  const [ahora, setAhora] = useState(() => new Date());
+  useEffect(() => {
+    const intervalo = setInterval(() => setAhora(new Date()), 60 * 1000);
+    return () => clearInterval(intervalo);
+  }, []);
+  return ahora;
 }
 
 export default function IcaPanel() {
   const [indice, setIndice] = useState<Indice>("EPA");
-  const { data, error, isLoading } = useFetchIca(indice);
+  // null = la última hora de cada estación (lo que se ve al entrar).
+  const [hora, setHora] = useState<string | null>(null);
+  const [horaPedida, setHoraPedida] = useState<string | null>(null);
+  const [reproduciendo, setReproduciendo] = useState(false);
+  const ahora = useAhora();
+  const horas = useMemo(() => horasDelSelector(ahora), [ahora]);
+
+  useEffect(() => {
+    const espera = setTimeout(() => setHoraPedida(hora), ESPERA_MS);
+    return () => clearTimeout(espera);
+  }, [hora]);
+
+  const { data, error, isLoading } = useFetchIca(indice, horaPedida);
+  // Las categorías de un índice no significan lo mismo en el otro: mientras
+  // llega el índice nuevo no se muestra nada del anterior.
+  const datos = data?.indice === indice ? data : null;
+  // La de otra hora sí se deja, atenuada, para que el mapa no parpadee al
+  // mover el deslizador.
+  const alDia = datos !== null && datos.hora === hora;
+
+  // Una hora que quedó fuera del deslizador (pasó otra hora con la página
+  // abierta) se corre a la más vieja que sigue adentro.
+  useEffect(() => {
+    if (hora !== null && !horas.includes(hora)) setHora(horas[0]);
+  }, [hora, horas]);
+
+  // Reproducir: con el dato de esta hora en pantalla, espera PASO_MS y pasa a
+  // la siguiente, que se pide por adelantado. Termina en "Última hora".
+  useEffect(() => {
+    if (!reproduciendo || !alDia) return;
+    if (hora === null) {
+      setReproduciendo(false);
+      return;
+    }
+    const i = horas.indexOf(hora);
+    const siguiente = i + 1 < horas.length ? horas[i + 1] : null;
+    if (siguiente) precargarIca(indice, siguiente);
+    const paso = setTimeout(() => setHora(siguiente), PASO_MS);
+    return () => clearTimeout(paso);
+  }, [reproduciendo, alDia, hora, horas, indice]);
+
+  // Con un error la hora no llega nunca y la reproducción quedaría trabada.
+  useEffect(() => {
+    if (error) setReproduciendo(false);
+  }, [error]);
+
+  const enHora = hora !== null;
 
   return (
     <div className="flex h-full w-full flex-col gap-4 p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <PageHeader
-          title="Índice de calidad del aire"
-          description={INDICES[indice].descripcion}
-        />
+      <PageHeader
+        title="Índice de calidad del aire"
+        description={INDICES[indice].descripcion}
+      />
 
+      <div className="flex flex-wrap items-stretch gap-3">
         {/* Los dos índices no se mezclan: se elige uno y toda la pantalla
             (colores, categorías, leyenda) es de ese. */}
-        <fieldset className="flex gap-1 rounded-md border border-primary/30 p-1">
+        <fieldset className="flex items-center gap-1 rounded-lg border border-primary/30 bg-white p-1 shadow-sm">
           <legend className="sr-only">Índice</legend>
           {IndiceEnum.options.map((opcion) => (
             <Button
@@ -184,6 +168,18 @@ export default function IcaPanel() {
             </Button>
           ))}
         </fieldset>
+
+        {datos ? (
+          <TarjetaCiudad
+            ciudad={datos.ciudad}
+            enHora={enHora}
+            className={cn("min-w-64 flex-1", !alDia && "opacity-50")}
+          />
+        ) : (
+          <div className="flex min-w-64 flex-1 items-center rounded-lg border border-primary/30 bg-white px-4 py-3 text-sm text-muted-foreground shadow-sm">
+            {error ? "Sin datos" : "Cargando…"}
+          </div>
+        )}
       </div>
 
       {error && (
@@ -193,30 +189,45 @@ export default function IcaPanel() {
         </div>
       )}
 
-      {isLoading && !data && (
-        <div className="flex flex-1 items-center justify-center">
-          <Loader2 className="size-10 animate-spin text-primary" />
-        </div>
-      )}
+      {/* El mapa queda montado aunque cambie el índice o la hora: solo cambian
+          los marcadores. Desde sm, el selector y la leyenda flotan encima,
+          como en el visor de la EEA; en un teléfono taparían las estaciones,
+          así que van arriba y abajo del mapa. */}
+      <div className="flex flex-1 flex-col gap-3 sm:relative sm:min-h-[480px] sm:overflow-hidden sm:rounded-lg sm:border sm:border-primary/30">
+        <SelectorHora
+          horas={horas}
+          hora={hora}
+          onCambiar={setHora}
+          reproduciendo={reproduciendo}
+          onReproducir={setReproduciendo}
+          ahora={ahora}
+          cargando={isLoading && datos !== null}
+          detalleUltima={detalleUltima(hora === null && alDia ? datos : null)}
+          className="sm:absolute sm:top-3 sm:right-3 sm:z-10 sm:w-80"
+        />
 
-      {data && (
-        <>
-          <TarjetaCiudad ciudad={data.ciudad} />
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {data.estaciones.map((e) => (
-              <TarjetaEstacion
-                key={e.station_code}
-                estacion={e}
-                categorias={data.categorias}
-              />
-            ))}
-          </div>
-          <Leyenda categorias={data.categorias} />
-          <div className="min-h-[360px] flex-1 overflow-hidden rounded-md border border-primary/30">
-            <IcaMap estaciones={data.estaciones} />
-          </div>
-        </>
-      )}
+        <div className="relative h-[360px] overflow-hidden rounded-lg border border-primary/30 sm:absolute sm:inset-0 sm:h-auto sm:rounded-none sm:border-0">
+          <IcaMap
+            estaciones={datos?.estaciones ?? []}
+            categorias={datos?.categorias ?? []}
+            enHora={enHora}
+            atenuado={!alDia}
+          />
+          {!datos && isLoading && (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <Loader2 className="size-10 animate-spin text-primary" />
+            </div>
+          )}
+        </div>
+
+        {datos && datos.categorias.length > 0 && (
+          <Leyenda
+            indice={indice}
+            categorias={datos.categorias}
+            className="sm:absolute sm:bottom-3 sm:left-3 sm:z-10 sm:w-64"
+          />
+        )}
+      </div>
     </div>
   );
 }

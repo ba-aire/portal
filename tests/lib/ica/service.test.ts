@@ -97,10 +97,20 @@ describe("getIca", () => {
   it("pide las tres cosas con el índice elegido", async () => {
     const res = await getIca("EEA");
 
-    expect(fetchIcaEstaciones).toHaveBeenCalledWith("EEA");
+    expect(fetchIcaEstaciones).toHaveBeenCalledWith("EEA", null);
     expect(fetchIcaCategorias).toHaveBeenCalledWith("EEA");
     expect(res.indice).toBe("EEA");
+    expect(res.hora).toBeNull();
     expect(res.categorias).toHaveLength(1);
+  });
+
+  it("con hora, la pide al repositorio y la devuelve como ISO", async () => {
+    const hora = new Date("2026-11-21T16:00:00.000Z");
+
+    const res = await getIca("EPA", hora);
+
+    expect(fetchIcaEstaciones).toHaveBeenCalledWith("EPA", hora);
+    expect(res.hora).toBe("2026-11-21T16:00:00.000Z");
   });
 
   it("cose los tres arreglos en una lista, en el orden que vienen", async () => {
@@ -170,6 +180,8 @@ describe("getIca", () => {
 
     expect(res.ciudad).toMatchObject({
       station_code: "cordoba",
+      // La hora de la peor estación: la tarjeta de la Ciudad la nombra.
+      ts_hour: "2026-11-10T16:00:00.000Z",
       categoria: 3,
       valor: 105,
       contaminante_principal: "no2",

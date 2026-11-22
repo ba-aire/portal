@@ -43,7 +43,10 @@ export type FilaEstacion = {
 // Una fila por estación de dim.stations, tenga índice o no: el LEFT JOIN deja a
 // la que no tiene con las columnas del índice en NULL, y así sigue en el mapa.
 // Coordenadas, tipo y descripción salen de dim.stations (V16), no de acá.
-const SQL_ESTACIONES = `
+//
+// Las dos consultas comparten todo menos el filtro de la vista: la última hora
+// de cada estación dentro de la ventana, o una hora exacta (el selector de hora).
+const COLUMNAS = `
   SELECT s.station_code, s.station_name,
          s.station_latitude::float8  AS latitude,
          s.station_longitude::float8 AS longitude,
@@ -51,7 +54,9 @@ const SQL_ESTACIONES = `
          i.ts_hour, i.categoria, i.categoria_nombre, i.color_hex, i.valor,
          i.contaminante_principal, i.contaminantes, i.categorias, i.subindices,
          i.indice_completo
-  FROM dim.stations s
+  FROM dim.stations s`;
+
+const SQL_ESTACIONES = `${COLUMNAS}
   LEFT JOIN LATERAL (
     SELECT *
     FROM gold.v_ica_horario v
@@ -59,6 +64,21 @@ const SQL_ESTACIONES = `
       AND v.station_id = s.station_id
       AND v.ts_hour >= now() - $2::interval
     ORDER BY v.ts_hour DESC
+    LIMIT 1
+  ) i ON true
+  ORDER BY s.station_code`;
+
+// Una hora exacta, sin buscar hacia atrás: en el selector, una estación que no
+// tiene índice a esa hora sale "sin índice". Si se cayera a la hora anterior,
+// al mover el selector se repetiría el mismo valor como si fuera de cada hora.
+// La igualdad sobre ts_hour llega al índice de gold igual que el rango de arriba.
+const SQL_ESTACIONES_EN_HORA = `${COLUMNAS}
+  LEFT JOIN LATERAL (
+    SELECT *
+    FROM gold.v_ica_horario v
+    WHERE v.indice = $1
+      AND v.station_id = s.station_id
+      AND v.ts_hour = $2::timestamptz
     LIMIT 1
   ) i ON true
   ORDER BY s.station_code`;
@@ -76,8 +96,20 @@ const SQL_PARAMETROS = `
   FROM dim.parameters
   WHERE measurement <> 'meteo'`;
 
-/** Última hora con índice de cada estación, dentro de la ventana. */
-export function fetchIcaEstaciones(indice: Indice): Promise<FilaEstacion[]> {
+/**
+ * El índice de cada estación. Sin hora, la última que tenga cada una dentro de
+ * la ventana; con hora (inicio de la hora), el de esa hora exacta.
+ */
+export function fetchIcaEstaciones(
+  indice: Indice,
+  hora: Date | null = null,
+): Promise<FilaEstacion[]> {
+  if (hora) {
+    return queryAiredb<FilaEstacion>(SQL_ESTACIONES_EN_HORA, [
+      indice,
+      hora.toISOString(),
+    ]);
+  }
   return queryAiredb<FilaEstacion>(SQL_ESTACIONES, [indice, VENTANA]);
 }
 

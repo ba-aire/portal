@@ -61,6 +61,8 @@ export type IcaCategoria = {
 
 /** La Ciudad: la peor de las estaciones que tienen índice. */
 export type IcaCiudad = {
+  /** La hora del índice de esa estación (ISO, inicio de la hora). */
+  ts_hour: string | null;
   categoria: number;
   categoria_nombre: string | null;
   color_hex: string | null;
@@ -73,6 +75,11 @@ export type IcaCiudad = {
 
 export type IcaRespuesta = {
   indice: Indice;
+  /**
+   * La hora pedida (ISO, inicio de la hora). null = la última hora de cada
+   * estación dentro de la ventana, que es lo que se ve al entrar.
+   */
+  hora: string | null;
   ciudad: IcaCiudad | null;
   estaciones: IcaEstacion[];
   categorias: IcaCategoria[];
