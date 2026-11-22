@@ -181,6 +181,7 @@ describe("POST /api/cargas/vista-previa", () => {
   it("200 con la vista previa", async () => {
     vi.mocked(fetchVistaPrevia).mockResolvedValue({
       parametros: [],
+      solapes: [],
     });
     const res = await vistaPrevia(post(URL_VP, PEDIDO));
     expect(res.status).toBe(200);

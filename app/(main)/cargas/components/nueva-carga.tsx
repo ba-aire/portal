@@ -4,6 +4,7 @@ import { AlertTriangle, Eye, Loader2, Upload } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -31,6 +32,7 @@ import {
   type MarcaDeHora,
 } from "@/lib/carga/parser";
 import type { Catalogo } from "@/lib/revision/models";
+import { formatearInstante } from "@/lib/revision/presentacion";
 import { abrirArchivo } from "./abrir-archivo";
 
 export default function NuevaCarga({
@@ -54,6 +56,10 @@ export default function NuevaCarga({
     datos: VistaPrevia;
   } | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  // La vista previa en la que quien carga confirmó que el lote pisa cargas
+  // vigentes. Vale para ESA vista: si cambia el lote o se vuelve a consultar,
+  // se pide de nuevo.
+  const [confirmadaEn, setConfirmadaEn] = useState<VistaPrevia | null>(null);
 
   const codigos = useMemo(
     () => catalogo.parametros.map((p) => p.parameter_code),
@@ -73,6 +79,9 @@ export default function NuevaCarga({
     ? `${estacion}|${marca}|${archivo?.nombre}|${horas.length}`
     : "";
   const vistaVigente = vista && vista.clave === clave ? vista.datos : null;
+  const pisaCargas = (vistaVigente?.solapes.length ?? 0) > 0;
+  const pisarConfirmado =
+    vistaVigente !== null && confirmadaEn === vistaVigente;
 
   // El nombre del archivo suele decir la estación ("...-nox-cordoba-..."). Si
   // nombra a OTRA que la elegida, se avisa: es el error más fácil de cometer,
@@ -97,7 +106,6 @@ export default function NuevaCarga({
       setVista(null);
     }
   }, [abierto]);
-
   const elegirArchivo = async (f: File | undefined) => {
     setArchivo(null);
     setErrorDeArchivo(null);
@@ -259,6 +267,18 @@ export default function NuevaCarga({
 
         {vistaVigente && <TablaVistaPrevia vista={vistaVigente} />}
 
+        {vistaVigente && pisaCargas && (
+          <CargasPisadas
+            vista={vistaVigente}
+            nombre={(c) =>
+              catalogo.parametros.find((p) => p.parameter_code === c)
+                ?.display_name ?? c
+            }
+            confirmado={pisarConfirmado}
+            onConfirmar={(v) => setConfirmadaEn(v ? vistaVigente : null)}
+          />
+        )}
+
         <div className="grid gap-1.5">
           <Label htmlFor="motivo">Motivo</Label>
           <textarea
@@ -282,9 +302,18 @@ export default function NuevaCarga({
           <Button
             onClick={cargar}
             disabled={
-              !vistaVigente || ocupado || motivo.trim().length < MOTIVO_MIN
+              !vistaVigente ||
+              ocupado ||
+              motivo.trim().length < MOTIVO_MIN ||
+              (pisaCargas && !pisarConfirmado)
             }
-            title={vistaVigente ? undefined : "Primero, la vista previa"}
+            title={
+              !vistaVigente
+                ? "Primero, la vista previa"
+                : pisaCargas && !pisarConfirmado
+                  ? "Confirmá que reemplaza cargas vigentes"
+                  : undefined
+            }
           >
             {ocupado && <Loader2 className="h-4 w-4 animate-spin" />}
             Cargar
@@ -355,10 +384,68 @@ function TablaVistaPrevia({ vista }: { vista: VistaPrevia }) {
             {reemplaza > 0 &&
               `${reemplaza} horas ya tienen un promedio válido medido por la red: la carga lo reemplaza. `}
             {yaCargadas > 0 &&
-              `${yaCargadas} horas ya estaban cargadas: vale esta carga, la más nueva.`}
+              `${yaCargadas} horas ya estaban cargadas: vale esta carga, la más nueva. Abajo, cuáles.`}
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Las cargas vigentes que este lote pisa, y la confirmación para seguir. La
+// base lo aceptaría igual (vale la carga más nueva, hora por hora): el aviso
+// está para que no pase sin querer.
+function CargasPisadas({
+  vista,
+  nombre,
+  confirmado,
+  onConfirmar,
+}: {
+  vista: VistaPrevia;
+  nombre: (codigo: string) => string;
+  confirmado: boolean;
+  onConfirmar: (v: boolean) => void;
+}) {
+  const total = vista.solapes.reduce((n, s) => n + s.horas, 0);
+  return (
+    <div className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+      <p className="flex gap-2 font-medium">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+        {vista.solapes.length === 1
+          ? `Esta carga reemplaza ${total} horas de la carga #${vista.solapes[0].carga_id}, que sigue vigente.`
+          : `Esta carga reemplaza ${total} horas de ${vista.solapes.length} cargas vigentes.`}
+      </p>
+      <ul className="space-y-1.5 pl-6">
+        {vista.solapes.map((s) => (
+          <li key={s.carga_id}>
+            <span className="font-medium">#{s.carga_id}</span>: {s.horas} horas
+            de {s.parametros.map(nombre).join(", ")}, del{" "}
+            {formatearHoraArgentina(s.desde)} al{" "}
+            {formatearHoraArgentina(s.hasta)}.{" "}
+            <span className="text-amber-800">
+              Registrada el {formatearInstante(s.registrado_en)} por{" "}
+              {s.registrado_por}
+              {s.archivo && ` (${s.archivo})`}: {s.motivo}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="pl-6">
+        En esas horas va a valer esta carga. Las otras horas de esas cargas no
+        cambian. Si anulás esta carga más adelante, vuelven a valer las
+        anteriores.
+      </p>
+      <div className="flex items-start gap-2 pl-6">
+        <Checkbox
+          id="confirmar-pisar"
+          checked={confirmado}
+          onCheckedChange={(v) => onConfirmar(v === true)}
+          className="mt-0.5 bg-white"
+        />
+        <Label htmlFor="confirmar-pisar" className="leading-snug">
+          Entiendo que esta carga reemplaza esas horas de cargas anteriores
+        </Label>
+      </div>
     </div>
   );
 }
