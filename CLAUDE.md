@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Pending work: in Linear
 
-What is pending is **not tracked in this repo** (no TODO files, no "pending" sections here). It lives in Linear, team **BA Aire**, project **Portal** (`P-BAIRE-4`, <https://linear.app/emaranda/project/portal-35f5c3116917>). The same tracker covers the other `ba-aire` repos (projects **Colector**, **INFRA vm** for `data` and `infra`).
+What is pending is **not tracked in this repo** (no TODO files, no "pending" sections here). It lives in Linear, team **BA Aire**, project **Portal** (`P-BAIRE-4`, <https://linear.app/emaranda/project/portal-35f5c3116917>). The same tracker covers the other `ba-aire` repos (projects **Colector**, **Data**, **INFRA vm** for `infra`).
 
 - Something new to do is a new issue in that project, not a file or a section of this `CLAUDE.md`.
 - Work that spans several repos (e.g. a `data` migration plus its page here) is ONE parent issue with one sub-issue per repo, each in its repo's project. Example: BAIRE-78 (equipment alarms), whose portal part is BAIRE-81.
