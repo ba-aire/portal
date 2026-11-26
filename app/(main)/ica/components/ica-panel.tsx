@@ -144,43 +144,11 @@ export default function IcaPanel() {
   const enHora = hora !== null;
 
   return (
-    <div className="flex h-full w-full flex-col gap-4 p-6">
+    <div className="flex h-full w-full flex-col gap-3 p-3 sm:p-4">
       <PageHeader
         title="Índice de calidad del aire"
         description={INDICES[indice].descripcion}
       />
-
-      <div className="flex flex-wrap items-stretch gap-3">
-        {/* Los dos índices no se mezclan: se elige uno y toda la pantalla
-            (colores, categorías, leyenda) es de ese. */}
-        <fieldset className="flex items-center gap-1 rounded-lg border border-primary/30 bg-white p-1 shadow-sm">
-          <legend className="sr-only">Índice</legend>
-          {IndiceEnum.options.map((opcion) => (
-            <Button
-              key={opcion}
-              type="button"
-              size="sm"
-              variant={opcion === indice ? "default" : "ghost"}
-              aria-pressed={opcion === indice}
-              onClick={() => setIndice(opcion)}
-            >
-              {INDICES[opcion].nombre}
-            </Button>
-          ))}
-        </fieldset>
-
-        {datos ? (
-          <TarjetaCiudad
-            ciudad={datos.ciudad}
-            enHora={enHora}
-            className={cn("min-w-64 flex-1", !alDia && "opacity-50")}
-          />
-        ) : (
-          <div className="flex min-w-64 flex-1 items-center rounded-lg border border-primary/30 bg-white px-4 py-3 text-sm text-muted-foreground shadow-sm">
-            {error ? "Sin datos" : "Cargando…"}
-          </div>
-        )}
-      </div>
 
       {error && (
         <div className="flex items-center gap-2 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -190,21 +158,64 @@ export default function IcaPanel() {
       )}
 
       {/* El mapa queda montado aunque cambie el índice o la hora: solo cambian
-          los marcadores. Desde sm, el selector y la leyenda flotan encima,
-          como en el visor de la EEA; en un teléfono taparían las estaciones,
-          así que van arriba y abajo del mapa. */}
+          los marcadores. Desde sm, los controles flotan encima, como en el
+          visor de la EEA: el índice y la Ciudad arriba a la izquierda, la hora
+          arriba a la derecha y la escala abajo a la izquierda. En un teléfono
+          taparían las estaciones, así que van arriba y abajo del mapa. */}
       <div className="flex flex-1 flex-col gap-3 sm:relative sm:min-h-[480px] sm:overflow-hidden sm:rounded-lg sm:border sm:border-primary/30">
-        <SelectorHora
-          horas={horas}
-          hora={hora}
-          onCambiar={setHora}
-          reproduciendo={reproduciendo}
-          onReproducir={setReproduciendo}
-          ahora={ahora}
-          cargando={isLoading && datos !== null}
-          detalleUltima={detalleUltima(hora === null && alDia ? datos : null)}
-          className="sm:absolute sm:top-3 sm:right-3 sm:z-10 sm:w-80"
-        />
+        {/* pointer-events-none en la franja: entre las tarjetas el mapa se
+            sigue pudiendo arrastrar y clickear. */}
+        <div className="flex flex-col gap-3 sm:pointer-events-none sm:absolute sm:inset-x-3 sm:top-3 sm:z-10 sm:flex-row sm:items-start">
+          <div className="flex flex-wrap items-stretch gap-3 sm:min-w-0 sm:flex-1">
+            {/* Los dos índices no se mezclan: se elige uno y toda la pantalla
+                (colores, categorías, leyenda) es de ese. */}
+            <fieldset className="pointer-events-auto flex items-center gap-1 rounded-lg border border-primary/30 bg-white p-1 shadow-sm sm:border-primary/15 sm:shadow-md sm:shadow-black/15">
+              <legend className="sr-only">Índice</legend>
+              {IndiceEnum.options.map((opcion) => (
+                <Button
+                  key={opcion}
+                  type="button"
+                  size="sm"
+                  variant={opcion === indice ? "default" : "ghost"}
+                  aria-pressed={opcion === indice}
+                  onClick={() => setIndice(opcion)}
+                >
+                  {INDICES[opcion].nombre}
+                </Button>
+              ))}
+            </fieldset>
+
+            {/* Sobre el mapa la tarjeta mide lo que su texto, no se estira
+                hasta el selector de hora: si no entra al lado del índice,
+                baja a la línea siguiente. */}
+            {datos ? (
+              <TarjetaCiudad
+                ciudad={datos.ciudad}
+                enHora={enHora}
+                className={cn(
+                  "pointer-events-auto min-w-64 flex-1 sm:flex-initial sm:border-primary/15 sm:shadow-md sm:shadow-black/15",
+                  !alDia && "opacity-50",
+                )}
+              />
+            ) : (
+              <div className="pointer-events-auto flex min-w-64 flex-1 items-center rounded-lg border border-primary/30 bg-white px-4 py-3 text-sm text-muted-foreground shadow-sm sm:flex-initial sm:border-primary/15 sm:shadow-md sm:shadow-black/15">
+                {error ? "Sin datos" : "Cargando…"}
+              </div>
+            )}
+          </div>
+
+          <SelectorHora
+            horas={horas}
+            hora={hora}
+            onCambiar={setHora}
+            reproduciendo={reproduciendo}
+            onReproducir={setReproduciendo}
+            ahora={ahora}
+            cargando={isLoading && datos !== null}
+            detalleUltima={detalleUltima(hora === null && alDia ? datos : null)}
+            className="pointer-events-auto sm:w-80 sm:shrink-0"
+          />
+        </div>
 
         <div className="relative h-[360px] overflow-hidden rounded-lg border border-primary/30 sm:absolute sm:inset-0 sm:h-auto sm:rounded-none sm:border-0">
           <IcaMap
@@ -224,7 +235,7 @@ export default function IcaPanel() {
           <Leyenda
             indice={indice}
             categorias={datos.categorias}
-            className="sm:absolute sm:bottom-3 sm:left-3 sm:z-10 sm:w-64"
+            className="sm:absolute sm:bottom-3 sm:left-3 sm:z-10 sm:w-max"
           />
         )}
       </div>
