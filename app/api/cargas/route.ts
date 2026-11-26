@@ -4,7 +4,7 @@ import { CargarSchema, ListarSchema } from "@/lib/carga/models";
 import { listarCargas, registrarCarga } from "@/lib/carga/repository";
 import { CargaRechazada, traducirError } from "@/lib/carga/service";
 import { extractQueryParams } from "@/lib/datos/utils";
-import { puedeRevisar } from "@/lib/revision/service";
+import { rechazoDePermiso } from "@/lib/revision/permiso";
 
 export const dynamic = "force-dynamic";
 
@@ -44,12 +44,11 @@ export async function POST(request: NextRequest) {
   if (!sesion) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
-  if (!(await puedeRevisar(sesion.email, sesion.role))) {
-    return NextResponse.json(
-      { error: "Solo un editor o un administrador puede cargar datos" },
-      { status: 403 },
-    );
-  }
+  const rechazo = await rechazoDePermiso(
+    sesion,
+    "Solo un editor o un administrador puede cargar datos",
+  );
+  if (rechazo) return rechazo;
 
   const parsed = CargarSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {

@@ -1,12 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth-session";
 import { AnularSchema, RevisionIdSchema } from "@/lib/revision/models";
+import { rechazoDePermiso } from "@/lib/revision/permiso";
 import { anularRevision } from "@/lib/revision/repository";
-import {
-  puedeRevisar,
-  RevisionRechazada,
-  traducirError,
-} from "@/lib/revision/service";
+import { RevisionRechazada, traducirError } from "@/lib/revision/service";
 
 export const dynamic = "force-dynamic";
 
@@ -20,12 +17,11 @@ export async function POST(
   if (!sesion) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
-  if (!(await puedeRevisar(sesion.email, sesion.role))) {
-    return NextResponse.json(
-      { error: "Solo un editor o un administrador puede revisar datos" },
-      { status: 403 },
-    );
-  }
+  const rechazo = await rechazoDePermiso(
+    sesion,
+    "Solo un editor o un administrador puede revisar datos",
+  );
+  if (rechazo) return rechazo;
 
   const id = RevisionIdSchema.safeParse((await context.params).id);
   if (!id.success) {

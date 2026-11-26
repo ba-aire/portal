@@ -3,7 +3,7 @@ import { getSession } from "@/lib/auth-session";
 import { AnularSchema, CargaIdSchema } from "@/lib/carga/models";
 import { anularCarga } from "@/lib/carga/repository";
 import { CargaRechazada, traducirError } from "@/lib/carga/service";
-import { puedeRevisar } from "@/lib/revision/service";
+import { rechazoDePermiso } from "@/lib/revision/permiso";
 
 export const dynamic = "force-dynamic";
 
@@ -17,12 +17,11 @@ export async function POST(
   if (!sesion) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
-  if (!(await puedeRevisar(sesion.email, sesion.role))) {
-    return NextResponse.json(
-      { error: "Solo un editor o un administrador puede cargar datos" },
-      { status: 403 },
-    );
-  }
+  const rechazo = await rechazoDePermiso(
+    sesion,
+    "Solo un editor o un administrador puede cargar datos",
+  );
+  if (rechazo) return rechazo;
 
   const id = CargaIdSchema.safeParse((await context.params).id);
   if (!id.success) {
