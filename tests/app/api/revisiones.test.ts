@@ -114,6 +114,21 @@ describe("POST /api/revisiones", () => {
     expect(registrarRevision).not.toHaveBeenCalled();
   });
 
+  // La base de usuarios caída o inexistente no deja pasar, y responde JSON: antes
+  // la excepción escapaba de la ruta y el cliente mostraba "Error inesperado".
+  it("500 en JSON si no se puede verificar el usuario, sin escribir", async () => {
+    vi.mocked(puedeRevisar).mockRejectedValue(
+      new Error('database "portal" does not exist'),
+    );
+    const res = await POST(post(URL_BASE, ALTA));
+    expect(res.status).toBe(500);
+    await expect(res.json()).resolves.toEqual({
+      error: "No se pudo verificar tu usuario. Probá de nuevo más tarde.",
+    });
+    expect(registrarRevision).not.toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalled();
+  });
+
   it.each([
     ["un cuerpo que no es JSON", "{no es json"],
     ["un motivo corto", { ...ALTA, motivo: "corto" }],
@@ -207,6 +222,16 @@ describe("POST /api/revisiones/:id/anular", () => {
   it("403 si no es un EDITOR o ADMIN vigente", async () => {
     vi.mocked(puedeRevisar).mockResolvedValue(false);
     expect((await anular(post(url, MOTIVO), ctx("3"))).status).toBe(403);
+    expect(anularRevision).not.toHaveBeenCalled();
+  });
+
+  it("500 en JSON si no se puede verificar el usuario, sin escribir", async () => {
+    vi.mocked(puedeRevisar).mockRejectedValue(
+      new Error('database "portal" does not exist'),
+    );
+    const res = await anular(post(url, MOTIVO), ctx("3"));
+    expect(res.status).toBe(500);
+    await expect(res.json()).resolves.toHaveProperty("error");
     expect(anularRevision).not.toHaveBeenCalled();
   });
 
