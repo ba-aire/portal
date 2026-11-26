@@ -146,31 +146,32 @@ export default function IcaPanel() {
   return (
     <div className="flex h-full w-full flex-col gap-3 p-3 sm:p-4">
       {/* El índice elegido cambia toda la pantalla (la bajada del título
-          incluida), así que el selector va al lado del título, a la derecha. */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <PageHeader
-          title="Índice de calidad del aire"
-          description={INDICES[indice].descripcion}
-          className="min-w-0 flex-1 basis-80"
-        />
-        {/* Los dos índices no se mezclan: se elige uno y toda la pantalla
-            (colores, categorías, leyenda) es de ese. */}
-        <fieldset className="flex shrink-0 items-center gap-1 rounded-lg border border-primary/30 bg-white p-1 shadow-sm">
-          <legend className="sr-only">Índice</legend>
-          {IndiceEnum.options.map((opcion) => (
-            <Button
-              key={opcion}
-              type="button"
-              size="sm"
-              variant={opcion === indice ? "default" : "ghost"}
-              aria-pressed={opcion === indice}
-              onClick={() => setIndice(opcion)}
-            >
-              {INDICES[opcion].nombre}
-            </Button>
-          ))}
-        </fieldset>
-      </div>
+          incluida), así que el selector va en la fila del título. */}
+      <PageHeader
+        title="Índice de calidad del aire"
+        description={INDICES[indice].descripcion}
+        acciones={
+          <>
+            {/* Los dos índices no se mezclan: se elige uno y toda la pantalla
+                (colores, categorías, leyenda) es de ese. */}
+            <fieldset className="flex shrink-0 items-center gap-1 rounded-lg border border-primary/30 bg-white p-1 shadow-sm">
+              <legend className="sr-only">Índice</legend>
+              {IndiceEnum.options.map((opcion) => (
+                <Button
+                  key={opcion}
+                  type="button"
+                  size="sm"
+                  variant={opcion === indice ? "default" : "ghost"}
+                  aria-pressed={opcion === indice}
+                  onClick={() => setIndice(opcion)}
+                >
+                  {INDICES[opcion].nombre}
+                </Button>
+              ))}
+            </fieldset>
+          </>
+        }
+      />
 
       {error && (
         <div className="flex items-center gap-2 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
