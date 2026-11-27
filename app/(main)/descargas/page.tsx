@@ -3,6 +3,7 @@ import { AlertCircle, FileDown, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 import { toast } from "sonner";
+import { ESCALA_ESTADO, ESCALA_ESTADO_MENSAJE } from "@/components/page-header";
 import { SinDatos } from "@/components/sin-datos";
 import SonnerToaster from "@/components/sonner-toaster";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ import {
   downloadAsExcel,
   generateFilename,
 } from "@/lib/descargas/file-download";
+import { cn } from "@/lib/utils";
 import Filtros, { type FiltrosType } from "./components/filters";
 import Table from "./components/table";
 
@@ -76,7 +78,7 @@ export default function DescargasPage() {
           <div className="p-6 bg-primary/10 rounded-full mb-6">
             <Loader2 className="w-16 h-16 text-primary animate-spin" />
           </div>
-          <h3 className="text-2xl font-bold text-primary mb-3">
+          <h3 className={cn("font-bold text-primary mb-3", ESCALA_ESTADO)}>
             Cargando Datos
           </h3>
         </div>
@@ -86,10 +88,17 @@ export default function DescargasPage() {
           <div className="p-6 bg-destructive/10 rounded-full mb-6 shadow-lg">
             <AlertCircle className="w-16 h-16 text-destructive" />
           </div>
-          <h3 className="text-2xl font-bold text-destructive mb-3">
+          <h3 className={cn("font-bold text-destructive mb-3", ESCALA_ESTADO)}>
             Ocurrió el siguiente error:
           </h3>
-          <p className="text-destructive/80 mb-6 max-w-lg text-lg">{error}</p>
+          <p
+            className={cn(
+              "text-destructive/80 mb-6 max-w-lg",
+              ESCALA_ESTADO_MENSAJE,
+            )}
+          >
+            {error}
+          </p>
         </div>
       )}
       {Array.isArray(data) && data.length > 0 && !isLoading && !error && (

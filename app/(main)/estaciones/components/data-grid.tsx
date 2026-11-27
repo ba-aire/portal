@@ -120,7 +120,7 @@ export default function DataGrid({ data }: { data: FullLocationData }) {
       <section className="my-6 space-y-4" aria-label="Contaminantes">
         <div className="flex items-center gap-3">
           <div className="w-1 h-6 rounded-full bg-primary" />
-          <h2 className="text-xl font-bold text-foreground uppercase tracking-wider">
+          <h2 className="text-lg font-bold text-foreground uppercase tracking-wider sm:text-xl">
             Contaminantes
           </h2>
         </div>
@@ -187,7 +187,7 @@ export default function DataGrid({ data }: { data: FullLocationData }) {
       <section className="my-6 space-y-4" aria-label="Meteorológica">
         <div className="flex items-center gap-3">
           <div className="w-1 h-6 rounded-full bg-primary" />
-          <h2 className="text-xl font-semibold text-foreground uppercase tracking-wider">
+          <h2 className="text-lg font-semibold text-foreground uppercase tracking-wider sm:text-xl">
             Meteorológica
           </h2>
         </div>
