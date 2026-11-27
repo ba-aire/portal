@@ -78,7 +78,7 @@ API routes validate query params with Zod. Services call repositories; request v
 - **Chart.js / Recharts** for pollutant data charts
 - **Mapbox GL / MapLibre GL** for station maps
 - Data tables (`/datos`, `/descargas`) are plain `<table>` elements, no table library, styled with the classes in `components/tabla-datos.ts` (brand-blue header, zebra rows, comma decimals)
-- Every page title is `components/page-header.tsx` (one `h1`, the description as a paragraph; `centrado` on filter pages; `acciones` puts controls in the title row, right-aligned, above the description). An empty result is `components/sin-datos.tsx` (blue text, never yellow: it fails contrast)
+- Every page title is `components/page-header.tsx` (one `h1`, the description as a paragraph; `centrado` on filter pages; `acciones` puts controls in the title row, right-aligned, above the description). Its sizes shrink downwards (BAIRE-87): title/description 20/14 px on phones, 22/15 px from `sm` (tablets and laptops, 1024 and 1440 included), 24/16 px from `2xl` (≥1536); `ESCALA_TITULO`/`ESCALA_BAJADA` carry that scale to the titles that don't use `PageHeader` (the live station page). An empty result is `components/sin-datos.tsx` (blue text, never yellow: it fails contrast)
 - Sidebar items are real links (`next/link`), reachable with Tab and openable in a new tab. The user avatar is built locally from the initials: no external avatar service (it would receive every user's email)
 - Calendars default to Spanish (`react-day-picker/locale` `es`)
 - **Sonner** for toast notifications

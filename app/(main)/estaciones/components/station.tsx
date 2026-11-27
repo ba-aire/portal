@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertCircle, Loader2, WifiOff } from "lucide-react";
+import { ESCALA_TITULO } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import useSSE from "@/hooks/useSSE";
 import { withBasePath } from "@/lib/base-path";
@@ -18,7 +19,12 @@ export default function Station({ location }: { location: string }) {
     <div className="w-full h-full p-6 flex flex-col max-w-7xl mx-auto">
       <div className="flex items-center relative gap-3">
         <div className={cn(`w-1 h-6 rounded-full`, bgColor)} />
-        <h1 className="text-2xl font-bold text-primary relative z-10 uppercase tracking-wider">
+        <h1
+          className={cn(
+            "font-bold text-primary relative z-10 uppercase tracking-wider",
+            ESCALA_TITULO,
+          )}
+        >
           Estación {nombreEstacion(location)}
         </h1>
       </div>
