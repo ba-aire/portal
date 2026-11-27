@@ -23,12 +23,13 @@ describe("catálogo de reportes", () => {
     }
   });
 
-  it("el mensual, en sus dos plantillas", () => {
+  it("el mensual, en sus plantillas visibles (la nueva está oculta)", () => {
     expect(reporteDe("mensual-clasico")).toMatchObject({
       tipo: "mensual",
       plantilla: "clasico",
     });
-    expect(reporteDe("mensual-nuevo")?.plantilla).toBe("nuevo");
+    expect(reporteDe("mensual-acumar")?.plantilla).toBe("acumar");
+    expect(reporteDe("mensual-nuevo")).toBeNull();
     expect(reporteDe("anual")).toBeNull();
     expect(reporteDe(undefined)).toBeNull();
   });
@@ -38,25 +39,17 @@ describe("catálogo de reportes", () => {
     expect(grupos.map((g) => g.tipo)).toEqual(["mensual"]);
     expect(grupos[0].reportes.map((r) => r.id)).toEqual([
       "mensual-clasico",
-      "mensual-nuevo",
       "mensual-acumar",
     ]);
   });
 
   it("la de ACUMAR es la clásica con otro emisor", () => {
     const acumar = REPORTES.find((r) => r.id === "mensual-acumar");
-    expect(acumar && nombreDelReporte(acumar)).toBe(
-      "ACUMAR - Plantilla mensual clásica",
-    );
+    expect(acumar && nombreDelReporte(acumar)).toBe("ACUMAR - Reporte Mensual");
   });
 
-  it("el nombre lleva el emisor y el tipo, y la versión solo en la nueva", () => {
-    expect(nombreDelReporte(REPORTES[0])).toBe(
-      "APrA - Plantilla mensual clásica",
-    );
-    expect(nombreDelReporte(REPORTES[1])).toMatch(
-      /^APrA - Plantilla mensual nueva v\d+\.\d+$/,
-    );
+  it("el nombre lleva el emisor y el tipo", () => {
+    expect(nombreDelReporte(REPORTES[0])).toBe("APrA - Reporte Mensual");
   });
 });
 
@@ -64,13 +57,13 @@ describe("pedidoDe (la URL de /reportes)", () => {
   const base = { estacion: "centenario", contaminante: "co", mes: "2026-09" };
 
   it("un mensual completo", () => {
-    expect(pedidoDe({ reporte: "mensual-nuevo", ...base })).toEqual({
+    expect(pedidoDe({ reporte: "mensual-acumar", ...base })).toEqual({
       tipo: "mensual",
       reporte: {
-        id: "mensual-nuevo",
-        emisor: "APrA",
+        id: "mensual-acumar",
+        emisor: "ACUMAR",
         tipo: "mensual",
-        plantilla: "nuevo",
+        plantilla: "acumar",
       },
       filtros: base,
     });
@@ -78,25 +71,30 @@ describe("pedidoDe (la URL de /reportes)", () => {
 
   it("si el parámetro viene repetido, toma el primero", () => {
     expect(
-      pedidoDe({ reporte: ["mensual-clasico", "mensual-nuevo"], ...base })
+      pedidoDe({ reporte: ["mensual-clasico", "mensual-acumar"], ...base })
         ?.reporte.id,
     ).toBe("mensual-clasico");
   });
 
   it.each([
     ["sin reporte", base],
+    ["con la plantilla nueva, oculta", { reporte: "mensual-nuevo", ...base }],
     ["con un reporte que no existe", { reporte: "anual", ...base }],
     [
       "sin mes",
-      { reporte: "mensual-nuevo", estacion: "centenario", contaminante: "co" },
+      {
+        reporte: "mensual-clasico",
+        estacion: "centenario",
+        contaminante: "co",
+      },
     ],
     [
       "con una estación fuera de la lista",
-      { ...base, reporte: "mensual-nuevo", estacion: "cifa" },
+      { ...base, reporte: "mensual-clasico", estacion: "cifa" },
     ],
     [
       "con un mes mal escrito",
-      { ...base, reporte: "mensual-nuevo", mes: "2026-9" },
+      { ...base, reporte: "mensual-clasico", mes: "2026-9" },
     ],
   ])("nada %s: no hay vista previa", (_, params) => {
     expect(pedidoDe(params)).toBeNull();

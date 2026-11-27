@@ -3,8 +3,8 @@ import {
   Download,
   FileChartColumn,
   MapPinned,
+  SquareCheck,
   Upload,
-  UserRoundCheck,
   Wind,
 } from "lucide-react";
 import { CODIGOS_ESTACION, ESTACIONES, urlEstacion } from "@/lib/estaciones";
@@ -59,7 +59,7 @@ export const validacion = [
   {
     title: "Validación",
     url: "/validacion",
-    icon: UserRoundCheck,
+    icon: SquareCheck,
   },
 ];
 

@@ -44,7 +44,9 @@ export const REPORTES = [
     tipo: "mensual",
     plantilla: "clasico",
   },
-  { id: "mensual-nuevo", emisor: "APrA", tipo: "mensual", plantilla: "nuevo" },
+  // "nuevo" (APrA - Plantilla mensual nueva): oculta por ahora. La plantilla
+  // sigue en lib/reportes/html/nuevo.tsx; para volver a mostrarla, descomentar:
+  // { id: "mensual-nuevo", emisor: "APrA", tipo: "mensual", plantilla: "nuevo" },
   {
     id: "mensual-acumar",
     emisor: "ACUMAR",
@@ -55,11 +57,12 @@ export const REPORTES = [
 
 export type ReporteId = (typeof REPORTES)[number]["id"];
 
-/** "APrA - Plantilla mensual clásica", "APrA - Plantilla mensual nueva v1.3". */
+/** "APrA - Reporte Mensual"; la plantilla nueva (hoy oculta) lleva su versión. */
 export function nombreDelReporte(r: Reporte): string {
-  const tipo = TIPOS[r.tipo].nombre.toLowerCase();
-  const plantilla = etiquetaPlantilla(r.plantilla).toLowerCase();
-  return `${r.emisor} - Plantilla ${tipo} ${plantilla}`;
+  const base = `${r.emisor} - Reporte ${TIPOS[r.tipo].nombre}`;
+  return r.plantilla === "nuevo"
+    ? `${base} ${etiquetaPlantilla(r.plantilla).toLowerCase()}`
+    : base;
 }
 
 /** El reporte de ese id, o null si no existe (o no vino). */
