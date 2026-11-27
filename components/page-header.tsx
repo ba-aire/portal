@@ -29,6 +29,19 @@ interface PageHeaderProps {
 export const ESCALA_TITULO = "text-xl sm:text-[1.375rem]/7 2xl:text-2xl";
 export const ESCALA_BAJADA = "text-sm sm:text-[0.9375rem]/6 2xl:text-base";
 
+/**
+ * Los títulos de un estado de la pantalla ("Cargando Datos", "Error de
+ * conexión", "No se encontraron datos") y su mensaje. Van siempre un escalón
+ * por debajo del título de la página: con 24 px fijos quedaban más grandes
+ * que él en un celular y en una notebook.
+ *
+ *              estado  mensaje
+ *   celular     18 px   16 px
+ *   ≥640 px     20 px   18 px
+ */
+export const ESCALA_ESTADO = "text-lg sm:text-xl";
+export const ESCALA_ESTADO_MENSAJE = "text-base sm:text-lg";
+
 // El título de cada pantalla: un solo h1, en mayúsculas, y la bajada como
 // párrafo (no como otro título). Ver la skill sirca-design.
 export function PageHeader({

@@ -3,6 +3,7 @@ import { AlertCircle, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { useMemo, useState } from "react";
 import type { FiltrosType } from "@/app/(main)/datos/contaminante/components/filters";
+import { ESCALA_ESTADO, ESCALA_ESTADO_MENSAJE } from "@/components/page-header";
 import { SinDatos } from "@/components/sin-datos";
 import SonnerToaster from "@/components/sonner-toaster";
 import useFetchDatos from "@/hooks/useFetchDatos";
@@ -15,6 +16,7 @@ import {
   tieneValores,
 } from "@/lib/datos/series";
 import type { Periodo } from "@/lib/periodo";
+import { cn } from "@/lib/utils";
 import Chart from "./components/chart";
 import Filtros from "./components/filters";
 import SeriesControls from "./components/series-controls";
@@ -66,7 +68,7 @@ export default function CrudosPage() {
           <div className="p-6 bg-primary/10 rounded-full mb-6">
             <Loader2 className="w-16 h-16 text-primary animate-spin" />
           </div>
-          <h3 className="text-2xl font-bold text-primary mb-3">
+          <h3 className={cn("font-bold text-primary mb-3", ESCALA_ESTADO)}>
             Cargando Datos
           </h3>
         </div>
@@ -76,10 +78,17 @@ export default function CrudosPage() {
           <div className="p-6 bg-destructive/10 rounded-full mb-6 shadow-lg">
             <AlertCircle className="w-16 h-16 text-destructive" />
           </div>
-          <h3 className="text-2xl font-bold text-destructive mb-3">
+          <h3 className={cn("font-bold text-destructive mb-3", ESCALA_ESTADO)}>
             Ocurrió el siguiente error:
           </h3>
-          <p className="text-destructive/80 mb-6 max-w-lg text-lg">{error}</p>
+          <p
+            className={cn(
+              "text-destructive/80 mb-6 max-w-lg",
+              ESCALA_ESTADO_MENSAJE,
+            )}
+          >
+            {error}
+          </p>
         </div>
       )}
       {conValores && !isLoading && !error && (
