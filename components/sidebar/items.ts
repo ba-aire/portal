@@ -1,7 +1,7 @@
 import {
   ChartLine,
   Download,
-  FileChartColumn,
+  FileChartLine,
   MapPinned,
   SquareCheck,
   Upload,
@@ -41,7 +41,7 @@ export const reportes = [
   {
     title: "Reportes",
     url: "/reportes",
-    icon: FileChartColumn,
+    icon: FileChartLine,
   },
 ];
 
